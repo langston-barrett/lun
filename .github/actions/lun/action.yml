@@ -9,17 +9,23 @@ inputs:
   version:
     description: version (without the leading 'v')
     required: false
-    default: '0.1.0'
+    default: '0.1.1'
   target:
     description: Target triple
     required: false
     default: 'x86_64-unknown-linux-gnu'
+  run-flags:
+    description: Flags to pass to `lun run`
+    required: false
+    default: "--check"
 runs:
   using: composite
   steps:
-  - uses: langston-barrett/lun/.github/actions/install-lun@c0d3073e820b50f06431449600fbf0c3e9584497
+  - uses: langston-barrett/lun/.github/actions/install-lun@90906a6dbd873a8ee10e523bd85ee220eeb93a21
     with:
       version: ${{ inputs.version }}
       target: ${{ inputs.target }}
-  - run: lun run
+  - name: lun run
     shell: bash
+    run: | # zizmor: ignore[template-injection]
+      lun run ${{ inputs.run-flags }}
