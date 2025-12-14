@@ -19,7 +19,7 @@ rm -f crates/ruff_formatter/shared_traits.rs
 cargo fmt
 cargo fmt --check
 
-do_time() { echo -- "${@}"; time -- "${@}"; }
+do_time() { echo -- "${@}"; command time -- "${@}"; }
 
 # ---------------- Clean checkout
 
@@ -40,7 +40,7 @@ lun run --ninja
 # remove just the non-ninja cache to act like ninja would
 for f in .lun/*; do
   if [[ $f == *ninja* ]]; then continue; fi
-  rm -rf $f
+  rm -rf "$f"
 done
 git checkout 0.7.0
 git checkout "${ver}"
