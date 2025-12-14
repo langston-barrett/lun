@@ -40,6 +40,16 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
             formatter: false,
         },
         config::Tool {
+            name: Some(String::from("mdlynx")),
+            cmd: "mdlynx --".to_string(),
+            files: "*.md".to_string(),
+            granularity: Granularity::Individual,
+            configs: Vec::new(),
+            check: None,
+            fix: None,
+            formatter: false,
+        },
+        config::Tool {
             name: Some(String::from("mypy")),
             cmd: "mypy --strict --".to_string(),
             files: "*.py".to_string(),
@@ -95,6 +105,16 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
             configs: vec![PathBuf::from("pyproject.toml"), PathBuf::from("ty.toml")],
             check: None,
             fix: None,
+            formatter: false,
+        },
+        config::Tool {
+            name: Some("ttlint".to_string()),
+            cmd: "ttlint --".to_string(),
+            files: "*".to_string(),
+            granularity: Granularity::Individual,
+            configs: Vec::new(),
+            check: None,
+            fix: Some("ttlint --fix --".to_string()),
             formatter: false,
         },
         config::Tool {

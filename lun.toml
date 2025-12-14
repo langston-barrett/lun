@@ -1,27 +1,39 @@
+# crated with:
+# lun init -m -r origin/main -t 'cargo clippy' -t 'cargo fmt' -t mdlynx -t ttlint -t typos
+
+mtime = true
 refs = ["origin/main"]
-# mtime = true
 
 [[tool]]
-name = "clippy"
+name = "cargo clippy"
 cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
-fix = "cargo clippy --color=always --allow-dirty --fix -- --deny warnings"
 files = "*.rs"
 granularity = "batch"
-config = "Cargo.toml"
+configs = ["Cargo.toml"]
+fix = "cargo clippy --color=always --allow-dirty --fix"
 
 [[tool]]
+name = "cargo fmt"
 cmd = "cargo fmt --"
 files = "*.rs"
-check = "cargo fmt --check --"
+granularity = "batch"
+configs = ["Cargo.toml"]
+check = "cargo fmt --check"
+formatter = true
 
 [[tool]]
+name = "mdlynx"
 cmd = "mdlynx --"
 files = "*.md"
 
 [[tool]]
+name = "ttlint"
 cmd = "ttlint --"
 files = "*"
+fix = "ttlint --fix --"
 
 [[tool]]
+name = "typos"
 cmd = "typos --"
 files = "*.md"
+fix = "typos --write-changes --"

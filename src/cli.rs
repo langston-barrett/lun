@@ -106,8 +106,29 @@ pub(crate) struct Run {
 #[derive(Debug, clap::Parser)]
 pub(crate) struct Init {
     /// Add a tool (can be used multiple times)
-    #[arg(long, action = clap::ArgAction::Append)]
-    pub(crate) linter: Vec<String>,
+    #[arg(short, long, action = clap::ArgAction::Append)]
+    pub(crate) tool: Vec<String>,
+    /// Include tool version in cache keys
+    #[arg(long)]
+    pub(crate) careful: bool,
+    /// Number of parallel jobs
+    #[arg(long)]
+    pub(crate) cores: Option<NonZeroUsize>,
+    /// Use mtime to skip unchanged files
+    #[arg(short, long)]
+    pub(crate) mtime: bool,
+    /// Git refs assumed to be good (can be used multiple times)
+    #[arg(short, long, action = clap::ArgAction::Append)]
+    pub(crate) r#ref: Vec<String>,
+    /// Allow a warning (can be used multiple times)
+    #[arg(short = 'A', long, action = clap::ArgAction::Append, value_name = "WARN")]
+    pub(crate) allow: Vec<String>,
+    /// Warn for a warning (can be used multiple times)
+    #[arg(short = 'W', long, action = clap::ArgAction::Append, value_name = "WARN")]
+    pub(crate) warn: Vec<String>,
+    /// Deny a warning (can be used multiple times)
+    #[arg(short = 'D', long, action = clap::ArgAction::Append, value_name = "WARN")]
+    pub(crate) deny: Vec<String>,
 }
 
 /// Add a tool to the config file
