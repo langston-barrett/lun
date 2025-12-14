@@ -89,7 +89,7 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         },
         config::Tool {
             name: Some("shellcheck".to_string()),
-            cmd: "shellcheck --".to_string(),
+            cmd: "shellcheck --color=always --".to_string(),
             files: "*.sh".to_string(),
             granularity: Granularity::Individual,
             configs: vec![PathBuf::from(".shellcheckrc")],

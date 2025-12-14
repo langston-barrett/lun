@@ -18,7 +18,14 @@ fn tool_commands(
 
     let matching_files = files
         .iter()
-        .filter(|f| tool.files.is_match(&f.path))
+        .filter(|f| {
+            if tool.files.is_match(&f.path) {
+                debug!("Match: {}", f.path.display());
+                true
+            } else {
+                false
+            }
+        })
         .collect::<Vec<_>>();
     if matching_files.is_empty() {
         debug!("No files matching glob for {}", tool.display_name());
@@ -37,6 +44,11 @@ fn tool_commands(
                     false
                 }
             } else {
+                debug!(
+                    "Not needed for {}: {}",
+                    tool.display_name(),
+                    file.path.display()
+                );
                 false
             }
         })

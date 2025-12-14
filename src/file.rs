@@ -61,6 +61,7 @@ pub(crate) fn collect_files(
     cache_dir: &Path,
     mtime_enabled: bool,
     progress_format: exec::ProgressFormat,
+    config_path: &Path,
 ) -> Result<Vec<File>> {
     match progress_format {
         exec::ProgressFormat::No => (),
@@ -68,7 +69,7 @@ pub(crate) fn collect_files(
         exec::ProgressFormat::Newline => eprintln!("\x1b[2K\r[0/?] Collecting files"),
     }
     drop(std::io::stderr().flush());
-    let last_run = last_run_time(cache_dir, mtime_enabled)?;
+    let last_run = last_run_time(cache_dir, mtime_enabled, config_path)?;
     let mut files = Vec::new();
     let cache = fs::canonicalize(cache_dir).with_context(|| {
         format!(

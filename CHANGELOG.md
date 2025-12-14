@@ -5,6 +5,7 @@
 ## next
 
 - Add more flags and tools to `--init`
+- Ignore mtimes if `lun.toml` has changed
 
 ## [0.1.1] - 2025-12-14
 

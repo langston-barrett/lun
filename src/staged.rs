@@ -31,8 +31,9 @@ fn get_staged_files() -> Result<Vec<PathBuf>> {
 pub(crate) fn collect_staged_files(
     cache_dir: &Path,
     mtime_enabled: bool,
+    config_path: &Path,
 ) -> Result<Vec<file::File>> {
-    let last_run = mtime::last_run_time(cache_dir, mtime_enabled)?;
+    let last_run = mtime::last_run_time(cache_dir, mtime_enabled, config_path)?;
     let staged_paths = get_staged_files()?;
     let mut files = Vec::new();
     let root = PathBuf::from(".");

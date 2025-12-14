@@ -51,9 +51,15 @@ fn collect_files(
     progress_format: exec::ProgressFormat,
 ) -> Result<Vec<file::File>, anyhow::Error> {
     let mut files = if run.staged {
-        staged::collect_staged_files(&cli.cache, mtime_enabled)?
+        staged::collect_staged_files(&cli.cache, mtime_enabled, &cli.config)?
     } else {
-        file::collect_files(Path::new("."), &cli.cache, mtime_enabled, progress_format)?
+        file::collect_files(
+            Path::new("."),
+            &cli.cache,
+            mtime_enabled,
+            progress_format,
+            &cli.config,
+        )?
     };
     filter_files(&mut files, &run.only_files, &run.skip_files)?;
     Ok(files)
@@ -134,6 +140,7 @@ struct Config {
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
+    config_path: PathBuf,
 }
 
 fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<Config> {
@@ -168,6 +175,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),
+        config_path: cli.config.clone(),
     })
 }
 
@@ -221,7 +229,7 @@ fn run(config: &Config) -> Result<RunResult> {
         && !config.dry_run
         && let Ok(true) = result
     {
-        mtime::update_last_run_time(&config.cache)?;
+        mtime::update_last_run_time(&config.cache, &config.config_path)?;
     }
     let result = match result {
         _ if config.dry_run => Ok(RunResult::AllGood { cmds: 0, files: 0 }),
