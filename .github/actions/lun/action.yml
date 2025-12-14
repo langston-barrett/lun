@@ -21,7 +21,7 @@ inputs:
 runs:
   using: composite
   steps:
-  - uses: langston-barrett/lun/.github/actions/install-lun@90906a6dbd873a8ee10e523bd85ee220eeb93a21
+  - uses: langston-barrett/lun/.github/actions/install-lun@8353692642bfc2ede22e128f0aa3a31a7359b8e6
     with:
       version: ${{ inputs.version }}
       target: ${{ inputs.target }}
