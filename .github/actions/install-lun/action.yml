@@ -9,7 +9,7 @@ inputs:
   version:
     description: version (without the leading 'v')
     required: false
-    default: '0.1.0'
+    default: '0.1.1'
   target:
     description: Target triple
     required: false
