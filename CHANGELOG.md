@@ -2,6 +2,10 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+- Add more flags and tools to `--init`
+
 ## [0.1.1] - 2025-12-14
 
 [0.1.1]: https://github.com/langston-barrett/lun/releases/tag/v0.1.1

@@ -57,7 +57,7 @@ pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> 
             run::go(&cli, run, &config, &lints).map(bool::from)
         }
         cli::Command::Init(init) => {
-            init::go(&cli.config, init.linter.clone())?;
+            init::go(&cli.config, init)?;
             Ok(true)
         }
         cli::Command::Add(add) => {

@@ -16,6 +16,7 @@ fn default<T: Default + PartialEq>(t: &T) -> bool {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct WarnCfg {
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
@@ -31,6 +32,7 @@ pub(crate) struct WarnCfg {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Config {
     pub(crate) tool: Vec<Tool>,
 
@@ -76,20 +78,27 @@ pub(crate) enum Granularity {
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct Tool {
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) name: Option<String>,
     pub(crate) cmd: String,
     pub(crate) files: String,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) granularity: Granularity,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) configs: Vec<PathBuf>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) check: Option<String>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) fix: Option<String>,
     #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) formatter: bool,
 }
 

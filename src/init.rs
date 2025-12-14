@@ -3,6 +3,7 @@ use std::{collections::HashSet, fs};
 
 use anyhow::{Context as _, Result};
 
+use crate::cli::Init;
 use crate::config::{self, Config};
 use crate::known::{self, known_tools_by_name};
 
@@ -11,6 +12,8 @@ fn get_known_tools(names: &[String]) -> std::result::Result<Vec<config::Tool>, a
     let known = known_tools_by_name();
     for n in names {
         if let Some(t) = known.get(n.as_str()) {
+            let mut t = t.clone();
+            t.configs.retain(|config| config.exists());
             tools.push(t.clone());
         } else {
             anyhow::bail!("Unknown tool: {n}");
@@ -27,30 +30,33 @@ fn collect_tools(linters: &[String]) -> Result<Vec<config::Tool>> {
     }
 }
 
-pub(crate) fn gen_config(mut linters: Vec<String>) -> Result<Config, anyhow::Error> {
+pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
     let mut names = HashSet::new();
+    let mut linters = init.tool.clone();
     linters.retain(|l| names.insert(l.clone()));
     let tool = collect_tools(&linters)?;
     let config = Config {
         tool,
-        refs: Vec::new(),
-        careful: false,
-        cores: None,
-        mtime: false,
+        refs: init.r#ref.clone(),
+        careful: init.careful,
+        cores: init.cores,
+        mtime: init.mtime,
         ninja: None,
         warns: config::WarnCfg {
-            allow: Vec::new(),
-            warn: Vec::new(),
-            deny: Vec::new(),
+            allow: init.allow.clone(),
+            warn: init.warn.clone(),
+            deny: init.deny.clone(),
         },
     };
     Ok(config)
 }
 
-pub(crate) fn go(config_path: &Path, linters: Vec<String>) -> Result<()> {
-    let config = gen_config(linters)?;
+pub(crate) fn go(config_path: &Path, init: &Init) -> Result<()> {
+    let config = gen_config(init)?;
     let toml = toml::to_string_pretty(&config).context("Failed to serialize config to TOML")?;
-    fs::write(config_path, toml)
+    let mut s = String::from("# https://langston-barrett.github.io/lun/config.html\n\n");
+    s.push_str(&toml);
+    fs::write(config_path, s)
         .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
     Ok(())
 }
@@ -62,8 +68,17 @@ mod tests {
 
     #[test]
     fn init() {
-        let config =
-            gen_config(vec!["cargo clippy".to_string(), "ruff check".to_string()]).unwrap();
+        let init = Init {
+            tool: vec!["cargo clippy".to_string(), "ruff check".to_string()],
+            careful: false,
+            cores: None,
+            mtime: false,
+            r#ref: Vec::new(),
+            allow: Vec::new(),
+            warn: Vec::new(),
+            deny: Vec::new(),
+        };
+        let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
             [[tool]]
@@ -73,27 +88,29 @@ mod tests {
             granularity = "batch"
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
-            formatter = false
 
             [[tool]]
             name = "ruff check"
             cmd = "ruff check --"
             files = "*.py"
-            granularity = "individual"
-            configs = [
-                "pyproject.toml",
-                "ruff.toml",
-                ".ruff.toml",
-            ]
             fix = "ruff check --fix --"
-            formatter = false
         "#]]
         .assert_eq(&toml);
     }
 
     #[test]
     fn init_detect() {
-        let config = gen_config(Vec::new()).unwrap();
+        let init = Init {
+            tool: Vec::new(),
+            careful: false,
+            cores: None,
+            mtime: false,
+            r#ref: Vec::new(),
+            allow: Vec::new(),
+            warn: Vec::new(),
+            deny: Vec::new(),
+        };
+        let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
             [[tool]]
@@ -103,7 +120,6 @@ mod tests {
             granularity = "batch"
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
-            formatter = false
 
             [[tool]]
             name = "cargo fmt"
