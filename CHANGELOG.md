@@ -6,6 +6,7 @@
 
 - Add more flags and tools to `--init`
 - Ignore mtimes if `lun.toml` has changed
+- Fix GitHub Actions
 
 ## [0.1.1] - 2025-12-14
 
