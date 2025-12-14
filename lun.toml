@@ -1,0 +1,27 @@
+refs = ["origin/main"]
+# mtime = true
+
+[[tool]]
+name = "clippy"
+cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
+fix = "cargo clippy --color=always --allow-dirty --fix -- --deny warnings"
+files = "*.rs"
+granularity = "batch"
+config = "Cargo.toml"
+
+[[tool]]
+cmd = "cargo fmt --"
+files = "*.rs"
+check = "cargo fmt --check --"
+
+[[tool]]
+cmd = "mdlynx --"
+files = "*.md"
+
+[[tool]]
+cmd = "ttlint --"
+files = "*"
+
+[[tool]]
+cmd = "typos --"
+files = "*.md"

@@ -1,0 +1,18 @@
+name: rust release
+on:
+  push:
+    branches:
+    - release*
+    tags:
+    - v*
+  pull_request:
+    paths: [".github/workflows/rust-release.yml"]
+  workflow_dispatch:
+
+jobs:
+  release:
+    uses: langston-barrett/gha/.github/workflows/rust-release.yml@e9a0541869681c30de7e16c4f7b70f03c23dd472
+    secrets:
+      crates-io-token: ${{ secrets.CRATES_IO_TOKEN }}
+    permissions:
+      contents: write

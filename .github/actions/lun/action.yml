@@ -1,0 +1,25 @@
+# Usage:
+#
+#     - uses: langston-barrett/lun/.github/actions/lun@SHA
+#
+
+name: lun
+description: Install and run lun
+inputs:
+  version:
+    description: version (without the leading 'v')
+    required: false
+    default: '0.1.0'
+  target:
+    description: Target triple
+    required: false
+    default: 'x86_64-unknown-linux-gnu'
+runs:
+  using: composite
+  steps:
+  - uses: langston-barrett/lun/.github/actions/install-lun@c0d3073e820b50f06431449600fbf0c3e9584497
+    with:
+      version: ${{ inputs.version }}
+      target: ${{ inputs.target }}
+  - run: lun run
+    shell: bash
