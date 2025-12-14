@@ -37,16 +37,7 @@ instructions on the [Rust installation page][install-rust].
 
 ### Via Cargo
 
-You can build a released version from [crates.io] using Cargo. To install the
-latest release, run:
-
-[crates.io]: https://crates.io/
-
-```sh
-cargo install --locked lun
-```
-
-Alternatively, you can install the latest, unreleased version with:
+Install the latest, unreleased version with:
 
 ```sh
 cargo install --locked --git https://github.com/langston-barrett/lun.git lun
