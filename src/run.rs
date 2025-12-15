@@ -115,7 +115,11 @@ pub(crate) fn filter_files(
     Ok(())
 }
 
-fn filter_tools(run: &cli::Run, config: &config::Config) -> Result<Vec<tool::Tool>> {
+fn filter_tools(
+    run: &cli::Run,
+    config: &config::Config,
+    color: cli::log::Color,
+) -> Result<Vec<tool::Tool>> {
     let careful = run.careful || config.careful;
     config
         .tool
@@ -128,7 +132,7 @@ fn filter_tools(run: &cli::Run, config: &config::Config) -> Result<Vec<tool::Too
             fmt && skip && only
         })
         .cloned()
-        .map(|t| t.into_tool(careful))
+        .map(|t| t.into_tool(careful, color))
         .collect::<Result<Vec<_>>>()
 }
 
@@ -179,7 +183,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
         no_capture: run.no_capture,
-        tools: filter_tools(run, config)?,
+        tools: filter_tools(run, config, cli.log.color)?,
         show_progress,
         keep_going: run.keep_going,
         then: run.then.clone(),

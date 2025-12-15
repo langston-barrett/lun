@@ -1,8 +1,19 @@
-use std::num::NonZero;
+use std::{num::NonZero, process};
 
 use tracing::debug;
 
 use crate::{cmd, config::Granularity, file, run::RunMode};
+
+pub(crate) fn display_cmd(c: &process::Command) -> String {
+    format!(
+        "{} {}",
+        c.get_program().display(),
+        c.get_args()
+            .map(|a| a.display().to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
 
 pub(crate) fn create_jobs(
     commands: Vec<cmd::Command>,
@@ -86,14 +97,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
                     files,
                 };
                 let c = cmd.to_command(RunMode::Normal);
-                debug!(
-                    "Batched {} {} (size: {sz})",
-                    c.get_program().display(),
-                    c.get_args()
-                        .map(|a| a.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                );
+                debug!("Batched {} (size: {sz})", display_cmd(&c));
                 Some(cmd)
             }
         })

@@ -272,7 +272,7 @@ fn test(path: &'static str) {
             .tool
             .iter()
             .cloned()
-            .map(|t| t.into_tool(false))
+            .map(|t| t.into_tool(false, cli::log::Color::Auto))
             .collect::<Result<Vec<_>>>()
             .unwrap();
         let run_mode = run::RunMode::from(run);

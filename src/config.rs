@@ -1,5 +1,6 @@
 use std::{
     fs, io,
+    io::IsTerminal,
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -117,7 +118,11 @@ pub(crate) struct Tool {
 }
 
 impl Tool {
-    pub(crate) fn into_tool(self, careful: bool) -> Result<tool::Tool> {
+    pub(crate) fn into_tool(
+        self,
+        careful: bool,
+        color: crate::cli::log::Color,
+    ) -> Result<tool::Tool> {
         let tool_name = self.name.as_ref().unwrap_or(&self.cmd);
         let config = build_config_hash(tool_name, &self.configs)?;
         let files = build_files_globset(&self.files, tool_name)?;
@@ -129,18 +134,37 @@ impl Tool {
             None
         };
 
+        let color_str = color_to_str(color);
+        let cmd = self.cmd.replace("{{color}}", color_str);
+        let check = self.check.map(|c| c.replace("{{color}}", color_str));
+        let fix = self.fix.map(|f| f.replace("{{color}}", color_str));
+
         Ok(tool::Tool {
             name: self.name,
-            cmd: self.cmd,
+            cmd,
             files,
             ignore,
             granularity: self.granularity,
             config,
-            check: self.check,
-            fix: self.fix,
+            check,
+            fix,
             formatter: self.formatter,
             version,
         })
+    }
+}
+
+fn color_to_str(color: crate::cli::log::Color) -> &'static str {
+    match color {
+        crate::cli::log::Color::Always => "always",
+        crate::cli::log::Color::Never => "never",
+        crate::cli::log::Color::Auto => {
+            if io::stdout().is_terminal() {
+                "always"
+            } else {
+                "never"
+            }
+        }
     }
 }
 
