@@ -13,7 +13,7 @@ use tracing::{debug, error, trace};
 
 use crate::cache::CacheWriter;
 use crate::job;
-use crate::{cache, cmd, run::RunMode};
+use crate::{cache, cmd};
 
 #[derive(Debug)]
 enum ReporterEvent {
@@ -32,7 +32,6 @@ pub(crate) enum ProgressFormat {
 pub(crate) fn exec(
     cache_writer: &mut impl CacheWriter,
     batches: Vec<cmd::Command>,
-    mode: RunMode,
     cores: NonZeroUsize,
     no_capture: bool,
     format: ProgressFormat,
@@ -63,7 +62,7 @@ pub(crate) fn exec(
                     return Ok((false, Vec::new()));
                 }
 
-                let c = cmd.to_command(mode);
+                let c = cmd.to_command();
                 let cmd_str = job::display_cmd(&c);
                 debug!("Running {}", cmd_str);
                 tx.send(ReporterEvent::Start {
@@ -81,11 +80,7 @@ pub(crate) fn exec(
                     if success { "success" } else { "failed" },
                 );
                 tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
-                let hashes = if success {
-                    done(cmd, mode)?
-                } else {
-                    Vec::new()
-                };
+                let hashes = if success { done(cmd)? } else { Vec::new() };
                 Ok((success, hashes))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -214,11 +209,11 @@ fn run(
     }
 }
 
-fn done(cmd: cmd::Command, mode: RunMode) -> Result<Vec<cache::KeyHash>> {
+fn done(cmd: cmd::Command) -> Result<Vec<cache::KeyHash>> {
     let tool = cmd.tool.clone();
     let mut hashes = Vec::with_capacity(cmd.files.len());
     for file in &cmd.files {
-        let key = cache::Key::from_file_and_tool(file, &tool, mode);
+        let key = cache::Key::from_file_and_tool(file, &tool);
         hashes.push(cache::KeyHash::from(&key));
     }
     Ok(hashes)

@@ -240,7 +240,7 @@ fn command_to_string(cmd: &process::Command) -> String {
 fn jobs_to_string(jobs: &[cmd::Command]) -> Vec<String> {
     let mut result = Vec::new();
     for job in jobs {
-        let cmd_str = command_to_string(&job.to_command(run::RunMode::Normal));
+        let cmd_str = command_to_string(&job.to_command());
         result.push(cmd_str);
     }
     result
@@ -267,25 +267,16 @@ fn test(path: &'static str) {
             .config
             .cores
             .unwrap_or(const { NonZeroUsize::new(1).unwrap() });
+        let run_mode = run::RunMode::from(run);
         let tool = scenario
             .config
             .tool
             .iter()
             .cloned()
-            .map(|t| t.into_tool(false, cli::log::Color::Auto))
+            .map(|t| t.into_tool(run_mode, false, cli::log::Color::Auto))
             .collect::<Result<Vec<_>>>()
             .unwrap();
-        let run_mode = run::RunMode::from(run);
-        let batches = plan::plan(
-            &mut cache,
-            &tool,
-            &files,
-            &[],
-            cores,
-            run_mode,
-            run.no_batch,
-        )
-        .unwrap();
+        let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch).unwrap();
         let out = jobs_to_string(&batches);
         assert_eq!(
             out,
@@ -296,9 +287,8 @@ fn test(path: &'static str) {
         // Simulate executing batches by marking commands as done in the cache
         for cmd in &batches {
             let tool = cmd.tool.clone();
-            assert!(tool.config.is_none());
             for file in &cmd.files {
-                let key = cache::Key::new(file.stamp, &tool.cmd, None, tool.version);
+                let key = cache::Key::new(file.stamp, tool.stamp);
                 cache.done(&key);
             }
         }

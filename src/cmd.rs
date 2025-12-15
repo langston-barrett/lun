@@ -1,6 +1,6 @@
 use std::{process, sync::Arc};
 
-use crate::{config, file, run::RunMode, tool};
+use crate::{config, file, tool};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Command {
@@ -9,8 +9,8 @@ pub(crate) struct Command {
 }
 
 impl Command {
-    pub(crate) fn to_command(&self, mode: RunMode) -> process::Command {
-        let cmd_str = self.tool.get_cmd(mode);
+    pub(crate) fn to_command(&self) -> process::Command {
+        let cmd_str = &self.tool.cmd;
         let parts: Vec<String> = cmd_str.split_whitespace().map(|s| s.to_string()).collect();
         let mut cmd = process::Command::new(&parts[0]);
         cmd.args(&parts[1..]);

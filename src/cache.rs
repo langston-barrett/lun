@@ -1,5 +1,3 @@
-use crate::{LUN_VERSION, file, run::RunMode};
-use anyhow::{Context, Result};
 use std::{
     collections::HashMap,
     fs,
@@ -7,43 +5,30 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+
+use anyhow::{Context, Result};
 use tracing::{debug, warn};
 use xxhash_rust::xxh3::Xxh3;
+
+use crate::tool;
+use crate::{LUN_VERSION, file};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Key {
     pub(crate) stamp: file::Stamp,
-    pub(crate) cmd: file::Xxhash,
-    pub(crate) config_file_content: Option<file::Xxhash>,
-    pub(crate) tool_version: Option<file::Xxhash>,
+    pub(crate) tool_stamp: tool::Stamp,
 }
 
 impl Key {
     #[cfg(test)]
-    pub(crate) fn new(
-        stamp: file::Stamp,
-        cmd: &str,
-        config_file_content: Option<file::Xxhash>,
-        tool_version: Option<file::Xxhash>,
-    ) -> Self {
-        Self {
-            stamp,
-            cmd: file::compute_hash(cmd.as_bytes()),
-            config_file_content,
-            tool_version,
-        }
+    pub(crate) fn new(stamp: file::Stamp, tool_stamp: tool::Stamp) -> Self {
+        Self { stamp, tool_stamp }
     }
 
-    pub(crate) fn from_file_and_tool(
-        file: &file::File,
-        tool: &crate::tool::Tool,
-        mode: RunMode,
-    ) -> Self {
+    pub(crate) fn from_file_and_tool(file: &file::File, tool: &tool::Tool) -> Self {
         Self {
             stamp: file.stamp,
-            cmd: file::compute_hash(tool.get_cmd(mode).as_bytes()),
-            config_file_content: tool.config,
-            tool_version: tool.version,
+            tool_stamp: tool.stamp,
         }
     }
 }
@@ -238,11 +223,12 @@ mod tests {
     use tempfile::NamedTempFile;
 
     fn create_test_key(path: &str, cmd: &str) -> Key {
+        let mut hasher = Xxh3::new();
+        hasher.update(cmd.as_bytes());
+        let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest()));
         Key::new(
             file::Stamp(file::Xxhash(path.len() as u64 + 12345)),
-            cmd,
-            None,
-            None,
+            tool_stamp,
         )
     }
 
