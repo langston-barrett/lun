@@ -162,7 +162,8 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                         warn: Vec::new(),
                         deny: Vec::new(),
                     },
-                    tool: Vec::new(),
+                    linter: Vec::new(),
+                    formatter: Vec::new(),
                     refs: Vec::new(),
                     careful: false,
                     cores: None,
@@ -270,10 +271,18 @@ fn test(path: &'static str) {
         let run_mode = run::RunMode::from(run);
         let tool = scenario
             .config
-            .tool
+            .linter
             .iter()
             .cloned()
             .map(|t| t.into_tool(run_mode, false, cli::log::Color::Auto))
+            .chain(
+                scenario
+                    .config
+                    .formatter
+                    .iter()
+                    .cloned()
+                    .map(|t| t.into_tool(run_mode, false, cli::log::Color::Auto)),
+            )
             .collect::<Result<Vec<_>>>()
             .unwrap();
         let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch).unwrap();
@@ -304,21 +313,22 @@ fn parse_test_file_debug() {
         [
             TestScenario {
                 config: Config {
-                    tool: [
-                        Tool {
-                            name: None,
-                            cmd: "lint --",
-                            files: [
-                                "*.py",
-                            ],
-                            ignore: [],
-                            granularity: Individual,
-                            configs: [],
-                            check: None,
+                    linter: [
+                        Linter {
+                            tool: Tool {
+                                name: None,
+                                cmd: "lint --",
+                                files: [
+                                    "*.py",
+                                ],
+                                ignore: [],
+                                granularity: Individual,
+                                configs: [],
+                            },
                             fix: None,
-                            formatter: false,
                         },
                     ],
+                    formatter: [],
                     careful: false,
                     cores: None,
                     mtime: false,
@@ -344,21 +354,22 @@ fn parse_test_file_debug() {
             },
             TestScenario {
                 config: Config {
-                    tool: [
-                        Tool {
-                            name: None,
-                            cmd: "lint --some-flag --",
-                            files: [
-                                "*.py",
-                            ],
-                            ignore: [],
-                            granularity: Individual,
-                            configs: [],
-                            check: None,
+                    linter: [
+                        Linter {
+                            tool: Tool {
+                                name: None,
+                                cmd: "lint --some-flag --",
+                                files: [
+                                    "*.py",
+                                ],
+                                ignore: [],
+                                granularity: Individual,
+                                configs: [],
+                            },
                             fix: None,
-                            formatter: false,
                         },
                     ],
+                    formatter: [],
                     careful: false,
                     cores: None,
                     mtime: false,

@@ -7,7 +7,7 @@ Test that when nothing has changed, commands are not rerun.
 ### Config
 
 ```toml
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -28,7 +28,7 @@ lint -- file.py
 ### Config
 
 ```toml
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"

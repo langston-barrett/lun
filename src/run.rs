@@ -115,6 +115,19 @@ pub(crate) fn filter_files(
     Ok(())
 }
 
+fn include_tool(tool: &config::Tool, run: &cli::Run) -> bool {
+    let skip = tool
+        .name
+        .as_ref()
+        .is_none_or(|n| !run.skip_tool.contains(n));
+    let only = run.only_tool.is_empty()
+        || tool
+            .name
+            .as_ref()
+            .is_some_and(|n| run.only_tool.contains(n));
+    skip && only
+}
+
 fn filter_tools(
     run: &cli::Run,
     config: &config::Config,
@@ -122,19 +135,23 @@ fn filter_tools(
     color: cli::log::Color,
 ) -> Result<Vec<tool::Tool>> {
     let careful = run.careful || config.careful;
-    config
-        .tool
-        .iter()
-        .filter(|&t| {
-            let fmt = !run.format || t.formatter;
-            let skip = t.name.as_ref().is_none_or(|n| !run.skip_tool.contains(n));
-            let only = run.only_tool.is_empty()
-                || t.name.as_ref().is_some_and(|n| run.only_tool.contains(n));
-            fmt && skip && only
-        })
-        .cloned()
-        .map(|t| t.into_tool(mode, careful, color))
-        .collect::<Result<Vec<_>>>()
+    let mut tools = Vec::new();
+
+    if !run.format {
+        for linter in &config.linter {
+            if include_tool(&linter.tool, run) {
+                tools.push(linter.clone().into_tool(mode, careful, color)?);
+            }
+        }
+    }
+
+    for formatter in &config.formatter {
+        if include_tool(&formatter.tool, run) {
+            tools.push(formatter.clone().into_tool(mode, careful, color)?);
+        }
+    }
+
+    Ok(tools)
 }
 
 #[derive(Debug, Clone)]

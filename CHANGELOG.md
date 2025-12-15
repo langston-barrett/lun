@@ -4,6 +4,7 @@
 
 ## next
 
+- **BREAKING**: Split `[[tool]]` into `[[linter]]` and `[[formatter]]` arrays.
 - Add `taplo` to the known tools
 
 ## [0.2.0] - 2025-12-15

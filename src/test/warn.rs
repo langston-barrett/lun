@@ -18,7 +18,7 @@ fn unknown_tool_success() {
     test(
         &["run", "--dry-run", "--only-tool", "mylinter"],
         r#"
-[[tool]]
+[[linter]]
 name = "mylinter"
 cmd = "lint --"
 files = ["*.py"]
@@ -38,7 +38,7 @@ fn unknown_tool_failure() {
             "--only-tool=bogus",
         ],
         r#"
-[[tool]]
+[[linter]]
 name = "mylinter"
 cmd = "lint --"
 files = ["*.py"]
@@ -54,7 +54,7 @@ fn careful_success() {
     test(
         &["run", "--dry-run", "--careful"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -68,7 +68,7 @@ fn careful_failure() {
     let result = test(
         &["--deny=careful", "run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -83,7 +83,7 @@ fn mtime_success() {
     test(
         &["run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -97,7 +97,7 @@ fn mtime_failure() {
     let result = test(
         &["--deny=mtime", "run", "--dry-run", "--mtime"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -112,7 +112,7 @@ fn refs_success() {
     test(
         &["run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -126,7 +126,7 @@ fn refs_failure() {
     let result = test(
         &["--deny=refs", "run", "--dry-run", "--refs", "main"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -141,7 +141,7 @@ fn unknown_warn_success() {
     test(
         &["--deny=unknown-tool", "run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -155,7 +155,7 @@ fn unknown_warn_failure() {
     let result = test(
         &["--allow=bogus-warn", "run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -170,7 +170,7 @@ fn no_files_success() {
     test(
         &["--allow=no-files", "run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = []
 granularity = "individual"
@@ -184,7 +184,7 @@ fn no_files_failure() {
     let result = test(
         &["run", "--dry-run"],
         r#"
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = []
 granularity = "individual"

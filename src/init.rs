@@ -5,26 +5,42 @@ use anyhow::{Context as _, Result};
 
 use crate::cli::Init;
 use crate::config::{self, Config};
-use crate::known::{self, known_tools_by_name};
+use crate::known;
 
-fn get_known_tools(names: &[String]) -> std::result::Result<Vec<config::Tool>, anyhow::Error> {
-    let mut tools = Vec::with_capacity(names.len());
-    let known = known_tools_by_name();
+fn get_known_tools(names: &[String]) -> Result<(Vec<config::Linter>, Vec<config::Formatter>)> {
+    let mut linters = Vec::new();
+    let mut formatters = Vec::new();
     for n in names {
-        if let Some(t) = known.get(n.as_str()) {
-            let mut t = t.clone();
-            t.configs.retain(|config| config.exists());
-            tools.push(t.clone());
+        if let Some(mut linter) = known::known_linter_by_name(n) {
+            linter.tool.configs.retain(|config| config.exists());
+            linters.push(linter);
+        } else if let Some(mut formatter) = known::known_formatter_by_name(n) {
+            formatter.tool.configs.retain(|config| config.exists());
+            formatters.push(formatter);
         } else {
             anyhow::bail!("Unknown tool: {n}");
         }
     }
-    Ok(tools)
+    Ok((linters, formatters))
 }
 
-fn collect_tools(linters: &[String]) -> Result<Vec<config::Tool>> {
+fn collect_tools(linters: &[String]) -> Result<(Vec<config::Linter>, Vec<config::Formatter>)> {
     if linters.is_empty() {
-        Ok(known::detect())
+        let mut detected_linters = Vec::new();
+        let mut detected_formatters = Vec::new();
+        for mut linter in known::known_linters() {
+            linter.tool.configs.retain(|config| config.exists());
+            if !linter.tool.configs.is_empty() {
+                detected_linters.push(linter);
+            }
+        }
+        for mut formatter in known::known_formatters() {
+            formatter.tool.configs.retain(|config| config.exists());
+            if !formatter.tool.configs.is_empty() {
+                detected_formatters.push(formatter);
+            }
+        }
+        Ok((detected_linters, detected_formatters))
     } else {
         get_known_tools(linters)
     }
@@ -32,11 +48,12 @@ fn collect_tools(linters: &[String]) -> Result<Vec<config::Tool>> {
 
 pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
     let mut names = HashSet::new();
-    let mut linters = init.tool.clone();
-    linters.retain(|l| names.insert(l.clone()));
-    let tool = collect_tools(&linters)?;
+    let mut tool_names = init.tool.clone();
+    tool_names.retain(|l| names.insert(l.clone()));
+    let (linter, formatter) = collect_tools(&tool_names)?;
     let config = Config {
-        tool,
+        linter,
+        formatter,
         refs: init.r#ref.clone(),
         careful: init.careful,
         cores: init.cores,
@@ -81,7 +98,7 @@ mod tests {
         let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
-            [[tool]]
+            [[linter]]
             name = "cargo clippy"
             cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
             files = ["*.rs"]
@@ -89,7 +106,7 @@ mod tests {
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
 
-            [[tool]]
+            [[linter]]
             name = "ruff check"
             cmd = "ruff check --"
             files = ["*.py"]
@@ -113,7 +130,7 @@ mod tests {
         let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
-            [[tool]]
+            [[linter]]
             name = "cargo clippy"
             cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
             files = ["*.rs"]
@@ -121,14 +138,13 @@ mod tests {
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
 
-            [[tool]]
+            [[formatter]]
             name = "cargo fmt"
             cmd = "cargo fmt --"
             files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
             check = "cargo fmt --check"
-            formatter = true
         "#]]
         .assert_eq(&toml);
     }
