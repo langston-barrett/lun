@@ -81,8 +81,10 @@ granularity = "individual"
 #[test]
 fn mtime_success() {
     test(
-        &["run", "--dry-run"],
+        &["--deny=mtime", "run", "--dry-run"],
         r#"
+mtime = false
+
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
@@ -95,7 +97,7 @@ granularity = "individual"
 #[test]
 fn mtime_failure() {
     let result = test(
-        &["--deny=mtime", "run", "--dry-run", "--mtime"],
+        &["--deny=mtime", "run", "--dry-run"],
         r#"
 [[linter]]
 cmd = "lint --"
@@ -104,7 +106,7 @@ granularity = "individual"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
-    expect!["mtime is set and --deny=mtime"].assert_eq(&error_display);
+    expect!["mtime is enabled and --deny=mtime"].assert_eq(&error_display);
 }
 
 #[test]

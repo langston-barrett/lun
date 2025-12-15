@@ -20,22 +20,22 @@ Once you've got a configuration, just run `lun run`.
 
 ## Why it's so fast
 
-Lūn is fast primarily because of four features:
+Lūn is fast primarily because of three features:
 
 1. Caching
 2. Batched parallelism
-3. Awareness of file modification times
-4. Git awareness
+3. Git awareness
 
 Also, it's written in Rust.
 
 ### Caching
 
 Whenever you run a linter on a file via Lūn, it saves a record (i.e., a hash)
-constructed from  several components, including the file path, file content, and
-the linter command line (see the documentation for a comprehensive list). Before
-running any tool, Lūn first consults this cache to see if it has a corresponding
-entry. If so, it skips running the linter again.
+constructed from  several components, including the file path, file metadata
+(modification time, size, permissions, etc.), and the linter command line (see
+the documentation for a comprehensive list). Before running any tool, Lūn first
+consults this cache to see if it has a corresponding entry. If so, it skips
+running the linter again.
 
 ### Batched parallelism
 
@@ -51,12 +51,6 @@ is passed.
 
 [Rayon]: https://docs.rs/rayon/latest/rayon/
 [Ninja]: https://ninja-build.org/
-
-### File modification times
-
-When configured with `mtime = true` (default: `false`), Lūn will record when
-it was most recently run. When run again, it examines file modification times,
-and ignores files that haven't been modified since then.
 
 ### Git awareness
 

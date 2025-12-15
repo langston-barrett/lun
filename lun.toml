@@ -1,6 +1,5 @@
 # cargo run -- init -m -r origin/main -t 'cargo clippy' -t 'cargo fmt' -t mdlynx -t shellcheck -t ttlint -t typos -t zizmor
 
-# mtime = true
 refs = ["origin/main"]
 
 [[linter]]

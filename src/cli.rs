@@ -64,9 +64,6 @@ pub(crate) struct Run {
     /// Continue running commands even after one fails
     #[arg(long)]
     pub(crate) keep_going: bool,
-    /// Use mtime to skip unchanged files (overrides config file value)
-    #[arg(short, long)]
-    pub(crate) mtime: bool,
     /// Use Ninja to run commands (overrides config file value)
     #[arg(short = 'N', long)]
     pub(crate) ninja: bool,
@@ -76,6 +73,9 @@ pub(crate) struct Run {
     /// Don't capture output (stream directly to terminal)
     #[arg(long)]
     pub(crate) no_capture: bool,
+    /// Disable use of mtime in cache entries (overrides config file value)
+    #[arg(long)]
+    pub(crate) no_mtime: bool,
     /// Only run tools with the given name (can be used multiple times)
     #[arg(long, action = clap::ArgAction::Append, value_name = "TOOL")]
     pub(crate) only_tool: Vec<String>,
@@ -114,9 +114,9 @@ pub(crate) struct Init {
     /// Number of parallel jobs
     #[arg(long)]
     pub(crate) cores: Option<NonZeroUsize>,
-    /// Use mtime to skip unchanged files
-    #[arg(short, long)]
-    pub(crate) mtime: bool,
+    /// Disable mtime to skip unchanged files
+    #[arg(long)]
+    pub(crate) no_mtime: bool,
     /// Git refs assumed to be good (can be used multiple times)
     #[arg(short, long, action = clap::ArgAction::Append)]
     pub(crate) r#ref: Vec<String>,

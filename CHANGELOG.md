@@ -2,6 +2,10 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+- Overhaul handling of file modification times. Enable `mtime` by default.
+
 ## [0.3.0] - 2025-12-15
 
 [0.3.0]: https://github.com/langston-barrett/lun/releases/tag/v0.3.0
