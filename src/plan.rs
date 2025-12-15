@@ -20,6 +20,7 @@ fn is_match(tool: &Arc<tool::Tool>, f: &file::File) -> bool {
     true
 }
 
+// The workings of this function are described in `doc/cache.md`.
 fn need_file(
     cache: &mut impl cache::Cache,
     git_refs: &[String],
@@ -27,33 +28,37 @@ fn need_file(
     tool: &Arc<tool::Tool>,
     file: &mut file::File,
 ) -> bool {
-    if mtime_enabled {
-        let key_without_content = cache::Key::from_mtime(file, tool);
-        if !cache.needed(&key_without_content) {
-            debug!(
-                "{}: not needed for {} (mtime)",
-                file.path.display(),
-                tool.display_name(),
-            );
-            return false;
-        }
+    let mtime_key = cache::Key::from_mtime(file, tool);
+    if mtime_enabled && !cache.needed(&mtime_key) {
+        debug!(
+            "{}: not needed for {} (mtime)",
+            file.path.display(),
+            tool.display_name(),
+        );
+        return false;
     }
     if let Err(e) = file.fill_content_stamp() {
         debug!("{}: failed to read content ({e})", file.path.display());
         return false;
     }
-    let key_with_content = cache::Key::from_content(file, tool);
-    if !cache.needed(&key_with_content) {
+    let content_key = cache::Key::from_content(file, tool);
+    if !cache.needed(&content_key) {
         debug!(
             "{}: not needed for {} (content)",
             file.path.display(),
             tool.display_name(),
         );
+        if mtime_enabled {
+            cache.done(&mtime_key);
+        }
         false
     } else if let Ok(true) = git::file_changed_from_refs(&file.path, git_refs) {
         true
     } else {
-        cache.done(&key_with_content);
+        cache.done(&content_key);
+        if mtime_enabled {
+            cache.done(&mtime_key);
+        }
         false
     }
 }
