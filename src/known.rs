@@ -106,6 +106,17 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
             formatter: false,
         },
         config::Tool {
+            name: Some("taplo".to_string()),
+            cmd: "taplo format --".to_string(),
+            files: vec!["*.toml".to_string()],
+            ignore: Vec::new(),
+            granularity: Granularity::Individual,
+            configs: vec![],
+            check: Some("taplo format --check --".to_string()),
+            fix: None,
+            formatter: false,
+        },
+        config::Tool {
             name: Some("ty".to_string()),
             cmd: "ty check --".to_string(),
             files: vec!["*.py".to_string()],
