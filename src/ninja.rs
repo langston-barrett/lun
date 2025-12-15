@@ -8,14 +8,13 @@ use anyhow::{Context as _, Result};
 use tracing::{debug, error, trace};
 use xxhash_rust::xxh3::Xxh3;
 
-use crate::{cache, cache::CacheWriter, cmd, run::RunMode};
+use crate::{cache, cache::CacheWriter, cmd};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
     cache: &mut impl CacheWriter,
     cache_dir: &Path,
     batches: Vec<cmd::Command>,
-    mode: RunMode,
     cores: NonZeroUsize,
     dry_run: bool,
     no_capture: bool,
@@ -27,7 +26,7 @@ pub(crate) fn exec(
         return Ok(true);
     }
 
-    generate_ninja_file(cache_dir, &ninja_file, &batches, mode)?;
+    generate_ninja_file(cache_dir, &ninja_file, &batches)?;
     if dry_run {
         return Ok(true);
     }
@@ -53,7 +52,7 @@ pub(crate) fn exec(
         }
         // When not capturing output, we can't parse which targets were executed,
         // so mark all targets as executed if ninja succeeded
-        batches.iter().map(|cmd| tgt_name(cmd, mode)).collect()
+        batches.iter().map(tgt_name).collect()
     } else {
         let out = cmd
             .output()
@@ -66,15 +65,15 @@ pub(crate) fn exec(
             error!("{stdout}\n{stderr}");
             return Ok(false);
         }
-        parse_ninja_output(&stdout, &stderr, &batches, mode, &builddir)
+        parse_ninja_output(&stdout, &stderr, &batches, &builddir)
     };
 
     for cmd in batches {
-        let target_name = tgt_name(&cmd, mode);
+        let target_name = tgt_name(&cmd);
         if executed_targets.contains(&target_name) {
             let tool = cmd.tool.clone();
             for file in &cmd.files {
-                let key = cache::Key::from_file_and_tool(file, &tool, mode);
+                let key = cache::Key::from_file_and_tool(file, &tool);
                 cache.done(&key);
             }
         }
@@ -83,14 +82,14 @@ pub(crate) fn exec(
     Ok(true)
 }
 
-fn tgt_name(cmd: &cmd::Command, mode: RunMode) -> String {
-    let hash = cmd_hash(cmd, mode);
+fn tgt_name(cmd: &cmd::Command) -> String {
+    let hash = cmd_hash(cmd);
     format!("$builddir/{hash:016x}")
 }
 
-fn cmd_hash(cmd: &cmd::Command, mode: RunMode) -> u64 {
+fn cmd_hash(cmd: &cmd::Command) -> u64 {
     let mut hasher = Xxh3::new();
-    let cmd_obj = cmd.to_command(mode);
+    let cmd_obj = cmd.to_command();
     let program_str = cmd_obj.get_program().to_string_lossy();
     hasher.update(program_str.as_bytes());
     hasher.update(&[0]);
@@ -111,7 +110,6 @@ fn generate_ninja_file(
     cache_dir: &Path,
     ninja_file: &Path,
     batches: &[cmd::Command],
-    mode: RunMode,
 ) -> Result<()> {
     debug!("Generating {}", ninja_file.display());
     let builddir = cache_dir.join("ninja");
@@ -122,7 +120,7 @@ fn generate_ninja_file(
     content.reserve(batches.len()); // at least
 
     for cmd in batches {
-        let cmd_obj = cmd.to_command(mode);
+        let cmd_obj = cmd.to_command();
         let mut cmd_parts = Vec::new();
         let program_str = cmd_obj.get_program().to_string_lossy();
         cmd_parts.push(escape_ninja_string(&program_str));
@@ -140,7 +138,7 @@ fn generate_ninja_file(
         let cmd_str = cmd_parts.join(" ");
 
         let desc = describe(&cmd_obj);
-        let name = tgt_name(cmd, mode);
+        let name = tgt_name(cmd);
         writeln!(content, "build {name}: run",).unwrap();
         writeln!(content, "  cmd = {}", escape_ninja_string(&cmd_str)).unwrap();
         writeln!(content, "  desc = {}", escape_ninja_string(&desc)).unwrap();
@@ -167,15 +165,14 @@ fn parse_ninja_output(
     stdout: &str,
     stderr: &str,
     batches: &[cmd::Command],
-    mode: RunMode,
     builddir: &Path,
 ) -> HashSet<String> {
     let mut executed = HashSet::new();
 
     let mut desc_to_target: Vec<(String, String)> = Vec::new();
     for cmd in batches {
-        let target_name = tgt_name(cmd, mode);
-        let desc = describe(&cmd.to_command(mode));
+        let target_name = tgt_name(cmd);
+        let desc = describe(&cmd.to_command());
         desc_to_target.push((desc, target_name));
     }
 

@@ -2,7 +2,7 @@ use std::{num::NonZero, process};
 
 use tracing::debug;
 
-use crate::{cmd, config::Granularity, file, run::RunMode};
+use crate::{cmd, config::Granularity, file};
 
 pub(crate) fn display_cmd(c: &process::Command) -> String {
     format!(
@@ -96,7 +96,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
                     tool: cmd.tool.clone(),
                     files,
                 };
-                let c = cmd.to_command(RunMode::Normal);
+                let c = cmd.to_command();
                 debug!("Batched {} (size: {sz})", display_cmd(&c));
                 Some(cmd)
             }

@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tracing::debug;
 
-use crate::{file, tool};
+use crate::{file, run::RunMode, tool};
 
 fn default<T: Default + PartialEq>(t: &T) -> bool {
     *t == Default::default()
@@ -120,6 +120,7 @@ pub(crate) struct Tool {
 impl Tool {
     pub(crate) fn into_tool(
         self,
+        mode: RunMode,
         careful: bool,
         color: crate::cli::log::Color,
     ) -> Result<tool::Tool> {
@@ -135,9 +136,35 @@ impl Tool {
         };
 
         let color_str = color_to_str(color);
-        let cmd = self.cmd.replace("{{color}}", color_str);
-        let check = self.check.map(|c| c.replace("{{color}}", color_str));
-        let fix = self.fix.map(|f| f.replace("{{color}}", color_str));
+        let cmd = match mode {
+            RunMode::Fix => {
+                if let Some(fix) = &self.fix {
+                    fix.replace("{{color}}", color_str)
+                } else {
+                    self.cmd.replace("{{color}}", color_str)
+                }
+            }
+            RunMode::Check => {
+                if self.formatter
+                    && let Some(check) = &self.check
+                {
+                    check.replace("{{color}}", color_str)
+                } else {
+                    self.cmd.replace("{{color}}", color_str)
+                }
+            }
+            RunMode::Normal => self.cmd.replace("{{color}}", color_str),
+        };
+
+        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+        hasher.update(cmd.as_bytes());
+        if let Some(config_hash) = config {
+            hasher.update(&config_hash.0.to_le_bytes());
+        }
+        if let Some(version_hash) = version {
+            hasher.update(&version_hash.0.to_le_bytes());
+        }
+        let stamp = tool::Stamp(file::Xxhash(hasher.digest()));
 
         Ok(tool::Tool {
             name: self.name,
@@ -145,11 +172,7 @@ impl Tool {
             files,
             ignore,
             granularity: self.granularity,
-            config,
-            check,
-            fix,
-            formatter: self.formatter,
-            version,
+            stamp,
         })
     }
 }

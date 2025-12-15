@@ -118,6 +118,7 @@ pub(crate) fn filter_files(
 fn filter_tools(
     run: &cli::Run,
     config: &config::Config,
+    mode: RunMode,
     color: cli::log::Color,
 ) -> Result<Vec<tool::Tool>> {
     let careful = run.careful || config.careful;
@@ -132,7 +133,7 @@ fn filter_tools(
             fmt && skip && only
         })
         .cloned()
-        .map(|t| t.into_tool(careful, color))
+        .map(|t| t.into_tool(mode, careful, color))
         .collect::<Result<Vec<_>>>()
 }
 
@@ -140,7 +141,6 @@ fn filter_tools(
 struct Config {
     refs: Vec<String>,
     cache: PathBuf,
-    mode: RunMode,
     cores: NonZeroUsize,
     dry_run: bool,
     files: Vec<file::File>,
@@ -175,7 +175,6 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
     Ok(Config {
         refs,
         cache: cli.cache.clone(),
-        mode,
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
         files: collect_files(cli, run, mtime, show_progress)?,
@@ -183,7 +182,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
         no_capture: run.no_capture,
-        tools: filter_tools(run, config, cli.log.color)?,
+        tools: filter_tools(run, config, mode, cli.log.color)?,
         show_progress,
         keep_going: run.keep_going,
         then: run.then.clone(),
@@ -223,7 +222,6 @@ fn run(config: &Config) -> Result<RunResult> {
         &config.files,
         &config.refs,
         config.cores,
-        config.mode,
         config.no_batch,
     )?;
     cache.flush()?;
@@ -268,7 +266,6 @@ fn do_exec(
             cache,
             config.cache.as_path(),
             jobs,
-            config.mode,
             config.cores,
             config.dry_run,
             config.no_capture,
@@ -280,7 +277,6 @@ fn do_exec(
         exec::exec(
             cache,
             jobs,
-            config.mode,
             config.cores,
             config.no_capture,
             config.show_progress,

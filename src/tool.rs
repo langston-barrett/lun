@@ -1,6 +1,10 @@
 use globset::GlobSet;
 
-use crate::{config::Granularity, file::Xxhash, run::RunMode};
+use crate::{config::Granularity, file::Xxhash};
+
+/// Hash of command, config file content, and tool version
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct Stamp(pub(crate) Xxhash);
 
 #[derive(Clone, Debug)]
 pub(crate) struct Tool {
@@ -9,37 +13,11 @@ pub(crate) struct Tool {
     pub(crate) files: GlobSet,
     pub(crate) ignore: Option<GlobSet>,
     pub(crate) granularity: Granularity,
-    pub(crate) config: Option<Xxhash>,
-    pub(crate) check: Option<String>,
-    pub(crate) fix: Option<String>,
-    pub(crate) formatter: bool,
-    pub(crate) version: Option<Xxhash>,
+    pub(crate) stamp: Stamp,
 }
 
 impl Tool {
     pub(crate) fn display_name(&self) -> &str {
         self.name.as_ref().unwrap_or(&self.cmd)
-    }
-
-    pub(crate) fn get_cmd(&self, mode: RunMode) -> &str {
-        match mode {
-            RunMode::Fix => {
-                if let Some(fix) = &self.fix {
-                    fix
-                } else {
-                    &self.cmd
-                }
-            }
-            RunMode::Check => {
-                if self.formatter
-                    && let Some(check) = &self.check
-                {
-                    check
-                } else {
-                    &self.cmd
-                }
-            }
-            RunMode::Normal => &self.cmd,
-        }
     }
 }
