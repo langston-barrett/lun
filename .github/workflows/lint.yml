@@ -22,7 +22,8 @@ jobs:
       with:
         persist-credentials: false
     - uses: langston-barrett/gha/.github/actions/install-linters@e9a0541869681c30de7e16c4f7b70f03c23dd472
-    - uses: langston-barrett/lun/.github/actions/lun@214bbdef75ebb160cf3a2eb625fb5641e3307386
-      with:
-        # clippy is run in ci.yml
-        run-flags: "--check --skip-tool='cargo clippy'"
+    # TODO: Re-enable after 0.2.0, config file format changed.
+    # - uses: langston-barrett/lun/.github/actions/lun@214bbdef75ebb160cf3a2eb625fb5641e3307386
+    #   with:
+    #     # clippy is run in ci.yml
+    #     run-flags: "--check --skip-tool='cargo clippy'"
