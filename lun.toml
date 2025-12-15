@@ -44,3 +44,4 @@ name = "zizmor"
 cmd = "zizmor --"
 files = [".github/**/*.yml"]
 fix = "zizmor --fix=safe --"
+ignore = [".github/**/dependabot.yml"]

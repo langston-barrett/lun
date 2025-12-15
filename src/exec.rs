@@ -65,7 +65,7 @@ pub(crate) fn exec(
 
                 let c = cmd.to_command();
                 let cmd_str = job::display_cmd(&c);
-                debug!("Running {}", cmd_str);
+                debug!("{}: running", cmd_str);
                 tx.send(ReporterEvent::Start {
                     cmd: cmd_str.clone(),
                 })
@@ -76,7 +76,7 @@ pub(crate) fn exec(
                     failed.store(true, Ordering::Relaxed);
                 }
                 debug!(
-                    "Finished {} ({})",
+                    "{}: {}",
                     cmd_str,
                     if success { "success" } else { "failed" },
                 );
@@ -205,10 +205,14 @@ fn run(
             trace!("{}", String::from_utf8_lossy(&out.stderr));
         }
         if !success {
-            io::stdout().write_all(b"\n")?;
-            io::stdout().write_all(out.stdout.as_slice())?;
-            io::stdout().write_all(b"\n")?;
-            io::stderr().write_all(out.stderr.as_slice())?;
+            let mut stdout = io::stdout().lock();
+            let mut stderr = io::stderr().lock();
+            stdout.write_all(b"\n")?;
+            stdout.write_all(displayed_command.as_bytes())?;
+            stdout.write_all(b"\n")?;
+            stdout.write_all(out.stdout.as_slice())?;
+            stderr.write_all(b"\n")?;
+            stderr.write_all(out.stderr.as_slice())?;
         }
         Ok(out.status)
     }
