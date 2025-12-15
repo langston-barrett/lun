@@ -2,7 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.3.0] - 2025-12-15
+
+[0.3.0]: https://github.com/langston-barrett/lun/releases/tag/v0.3.0
 
 - **BREAKING**: Split `[[tool]]` into `[[linter]]` and `[[formatter]]` arrays.
 - Add `taplo` to the known tools
