@@ -58,6 +58,9 @@ pub(crate) struct Run {
     /// Only run formatters
     #[arg(short, long = "format")]
     pub(crate) format: bool,
+    /// Equivalent to `--no-cache --no-refs`
+    #[arg(short = 'F', long)]
+    pub(crate) fresh: bool,
     /// Number of parallel jobs (overrides config file value)
     #[arg(short, long = "jobs")]
     pub(crate) jobs: Option<NonZeroUsize>,
@@ -70,12 +73,18 @@ pub(crate) struct Run {
     /// Skip batching jobs (run one command per file)
     #[arg(long)]
     pub(crate) no_batch: bool,
+    /// Disable reading from and writing to the cache
+    #[arg(long)]
+    pub(crate) no_cache: bool,
     /// Don't capture output (stream directly to terminal)
     #[arg(long)]
     pub(crate) no_capture: bool,
     /// Disable use of mtime in cache entries (overrides config file value)
     #[arg(long)]
     pub(crate) no_mtime: bool,
+    /// Ignore any refs from CLI or config file
+    #[arg(long)]
+    pub(crate) no_refs: bool,
     /// Only run tools with the given name (can be used multiple times)
     #[arg(long, action = clap::ArgAction::Append, value_name = "TOOL")]
     pub(crate) only_tool: Vec<String>,

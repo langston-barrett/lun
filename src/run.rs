@@ -166,6 +166,7 @@ struct Config {
     ninja: bool,
     no_batch: bool,
     no_capture: bool,
+    no_cache: bool,
     tools: Vec<tool::Tool>,
     show_progress: exec::ProgressFormat,
     keep_going: bool,
@@ -183,7 +184,9 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
     } else {
         exec::ProgressFormat::No
     };
-    let refs = if !run.refs.is_empty() {
+    let refs = if run.no_refs || run.fresh {
+        Vec::new()
+    } else if !run.refs.is_empty() {
         run.refs.clone()
     } else {
         config.refs.clone()
@@ -199,6 +202,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
         no_capture: run.no_capture,
+        no_cache: run.no_cache || run.fresh,
         tools: filter_tools(run, config, mode, cli.log.color)?,
         show_progress,
         keep_going: run.keep_going,
@@ -232,9 +236,13 @@ fn run(config: &Config) -> Result<RunResult> {
     trace!(?config);
     debug_assert!(config.files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
-    let mut cache = cache::HashCache::from_file(&cache_file)?;
+    let mut cache: &mut dyn cache::Cache = if config.no_cache {
+        &mut cache::NopCache
+    } else {
+        &mut cache::HashCache::from_file(&cache_file)?
+    };
     let jobs = plan::plan(
-        &mut cache,
+        cache,
         &config.tools,
         &config.files,
         &config.refs,
@@ -270,7 +278,7 @@ fn run(config: &Config) -> Result<RunResult> {
 
 fn do_exec(
     config: &Config,
-    cache: &mut cache::HashCache,
+    cache: &mut impl CacheWriter,
     jobs: Vec<crate::cmd::Command>,
 ) -> std::result::Result<bool, anyhow::Error> {
     if config.ninja {
