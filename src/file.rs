@@ -7,7 +7,6 @@ use tracing::debug;
 use xxhash_rust::xxh3::Xxh3;
 
 use crate::exec;
-use crate::mtime::last_run_time;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Xxhash(pub(crate) u64);
@@ -20,33 +19,82 @@ pub(crate) struct Stamp(pub(crate) Xxhash);
 pub(crate) struct File {
     pub(crate) path: PathBuf,
     pub(crate) size: usize,
-    pub(crate) stamp: Stamp,
+    pub(crate) metadata_stamp: Stamp,
+    pub(crate) mtime_stamp: Stamp,
+    pub(crate) content_stamp: Option<Stamp>,
+}
+
+fn compute_md_stamp(path: &Path, metadata: &fs::Metadata) -> Stamp {
+    let mut md = Xxh3::new();
+    md.update(path.as_os_str().as_encoded_bytes());
+    md.update(&metadata.len().to_le_bytes());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        md.update(&metadata.uid().to_le_bytes());
+        md.update(&metadata.gid().to_le_bytes());
+        md.update(&metadata.mode().to_le_bytes());
+    }
+    Stamp(Xxhash(md.digest()))
+}
+
+fn compute_mtime_stamp(path: &Path, metadata: &fs::Metadata) -> Result<Stamp, anyhow::Error> {
+    let mtime = metadata
+        .modified()
+        .with_context(|| format!("Failed to get modification time for: {}", path.display()))?;
+    let mut mtime_hasher = Xxh3::new();
+    mtime_hasher.update(
+        &mtime
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+            .to_le_bytes(),
+    );
+    let mtime_stamp = Stamp(Xxhash(mtime_hasher.digest()));
+    Ok(mtime_stamp)
 }
 
 impl File {
     pub(crate) fn new(path: PathBuf) -> Result<Self> {
-        let content =
-            fs::read(&path).with_context(|| format!("Failed to read file: {}", path.display()))?;
         let metadata = fs::metadata(&path)
             .with_context(|| format!("Failed to get metadata for: {}", path.display()))?;
-
-        let mut hasher = Xxh3::new();
-        hasher.update(path.as_os_str().as_encoded_bytes());
-        hasher.update(&content);
-        hasher.update(&metadata.len().to_le_bytes());
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::MetadataExt;
-            hasher.update(&metadata.uid().to_le_bytes());
-            hasher.update(&metadata.gid().to_le_bytes());
-            hasher.update(&metadata.mode().to_le_bytes());
-        }
-
+        let metadata_stamp = compute_md_stamp(&path, &metadata);
+        let mtime_stamp = compute_mtime_stamp(&path, &metadata)?;
         Ok(Self {
             path,
             size: metadata.len() as usize,
-            stamp: Stamp(Xxhash(hasher.digest())),
+            metadata_stamp,
+            mtime_stamp,
+            content_stamp: None,
         })
+    }
+
+    /// Fill in the content stamp by reading the file content
+    pub(crate) fn fill_content_stamp(&mut self) -> Result<()> {
+        if self.content_stamp.is_some() {
+            return Ok(());
+        }
+        let content = fs::read(&self.path)
+            .with_context(|| format!("Failed to read file: {}", self.path.display()))?;
+        self.content_stamp = Some(Stamp(compute_hash(&content)));
+        Ok(())
+    }
+
+    pub(crate) fn content_stamp(&self) -> Stamp {
+        debug_assert!(self.content_stamp.is_some());
+        let mut hasher = Xxh3::new();
+        hasher.update(&self.metadata_stamp.0.0.to_le_bytes());
+        if let Some(content_stamp) = self.content_stamp {
+            hasher.update(&content_stamp.0.0.to_le_bytes());
+        }
+        Stamp(Xxhash(hasher.digest()))
+    }
+
+    pub(crate) fn mtime_stamp(&self) -> Stamp {
+        let mut hasher = Xxh3::new();
+        hasher.update(&self.metadata_stamp.0.0.to_le_bytes());
+        hasher.update(&self.mtime_stamp.0.0.to_le_bytes());
+        Stamp(Xxhash(hasher.digest()))
     }
 }
 
@@ -59,9 +107,7 @@ pub(crate) fn compute_hash(content: &[u8]) -> Xxhash {
 pub(crate) fn collect_files(
     root: &Path,
     cache_dir: &Path,
-    mtime_enabled: bool,
     progress_format: exec::ProgressFormat,
-    config_path: &Path,
 ) -> Result<Vec<File>> {
     match progress_format {
         exec::ProgressFormat::No => (),
@@ -69,7 +115,6 @@ pub(crate) fn collect_files(
         exec::ProgressFormat::Newline => eprintln!("\x1b[2K\r[0/?] Collecting files"),
     }
     drop(std::io::stderr().flush());
-    let last_run = last_run_time(cache_dir, mtime_enabled, config_path)?;
     let mut files = Vec::new();
     let cache = fs::canonicalize(cache_dir).with_context(|| {
         format!(
@@ -92,14 +137,7 @@ pub(crate) fn collect_files(
     for result in walker {
         let entry = result.with_context(|| "Failed to read directory entry")?;
         let path = entry.path();
-        if path.is_dir()
-            || !last_run.needed(path).with_context(|| {
-                format!(
-                    "Failed to check if {} was needed based on mtime",
-                    path.display()
-                )
-            })?
-        {
+        if path.is_dir() {
             continue;
         }
 

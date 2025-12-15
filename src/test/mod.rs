@@ -33,14 +33,18 @@ struct TestFile {
 impl TestFile {
     fn to_file(&self) -> file::File {
         use xxhash_rust::xxh3::Xxh3;
-        let mut hasher = Xxh3::new();
-        hasher.update(self.path.as_os_str().as_encoded_bytes());
-        hasher.update(self.content.as_bytes());
-        hasher.update(&self.size.to_le_bytes());
+        let mut metadata_hasher = Xxh3::new();
+        metadata_hasher.update(self.path.as_os_str().as_encoded_bytes());
+        metadata_hasher.update(&self.size.to_le_bytes());
+        let metadata_stamp = file::Stamp(file::Xxhash(metadata_hasher.digest()));
+        let mtime_stamp = file::Stamp(file::Xxhash(0));
+        let content_stamp = Some(file::Stamp(file::compute_hash(self.content.as_bytes())));
         file::File {
             path: self.path.clone(),
             size: self.size,
-            stamp: file::Stamp(file::Xxhash(hasher.digest())),
+            metadata_stamp,
+            mtime_stamp,
+            content_stamp,
         }
     }
 }
@@ -315,7 +319,8 @@ fn test(path: &'static str) {
                 )
                 .collect::<Result<Vec<_>>>()
                 .unwrap();
-        let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch).unwrap();
+        let batches =
+            plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch, false).unwrap();
         let out = jobs_to_string(&batches);
         assert_eq!(
             out,
@@ -327,7 +332,7 @@ fn test(path: &'static str) {
         for cmd in &batches {
             let tool = cmd.tool.clone();
             for file in &cmd.files {
-                let key = cache::Key::new(file.stamp, tool.stamp);
+                let key = cache::Key::new(file.content_stamp(), tool.stamp);
                 cache.done(&key);
             }
         }

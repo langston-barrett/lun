@@ -15,7 +15,7 @@ use tracing::{debug, trace, warn};
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, config, exec, file, mtime, ninja, plan, staged, tool,
+    cli, config, exec, file, ninja, plan, staged, tool,
     warn::{self, warns::Warns},
 };
 
@@ -47,19 +47,12 @@ pub(crate) fn num_cores(cores: Option<NonZeroUsize>) -> NonZeroUsize {
 fn collect_files(
     cli: &cli::Cli,
     run: &cli::Run,
-    mtime_enabled: bool,
     progress_format: exec::ProgressFormat,
 ) -> Result<Vec<file::File>, anyhow::Error> {
     let mut files = if run.staged {
-        staged::collect_staged_files(&cli.cache, mtime_enabled, &cli.config)?
+        staged::collect_staged_files()?
     } else {
-        file::collect_files(
-            Path::new("."),
-            &cli.cache,
-            mtime_enabled,
-            progress_format,
-            &cli.config,
-        )?
+        file::collect_files(Path::new("."), &cli.cache, progress_format)?
     };
     filter_files(&mut files, &run.only_files, &run.skip_files)?;
     Ok(files)
@@ -178,7 +171,6 @@ struct Config {
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
-    config_path: PathBuf,
 }
 
 fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<Config> {
@@ -202,7 +194,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         cache: cli.cache.clone(),
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
-        files: collect_files(cli, run, mtime, show_progress)?,
+        files: collect_files(cli, run, show_progress)?,
         mtime,
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
@@ -212,7 +204,6 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),
-        config_path: cli.config.clone(),
     })
 }
 
@@ -239,6 +230,7 @@ impl From<&RunResult> for bool {
 
 fn run(config: &Config) -> Result<RunResult> {
     trace!(?config);
+    debug_assert!(config.files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
     let mut cache = cache::HashCache::from_file(&cache_file)?;
     let jobs = plan::plan(
@@ -248,6 +240,7 @@ fn run(config: &Config) -> Result<RunResult> {
         &config.refs,
         config.cores,
         config.no_batch,
+        config.mtime,
     )?;
     cache.flush()?;
     let no_jobs = jobs.is_empty();
@@ -260,12 +253,6 @@ fn run(config: &Config) -> Result<RunResult> {
     let result = do_exec(config, &mut cache, jobs);
     if !no_jobs {
         cache.flush()?;
-    }
-    if config.mtime
-        && !config.dry_run
-        && let Ok(true) = result
-    {
-        mtime::update_last_run_time(&config.cache, &config.config_path)?;
     }
     let result = match result {
         _ if config.dry_run => Ok(RunResult::AllGood { cmds: 0, files: 0 }),
@@ -295,6 +282,7 @@ fn do_exec(
             config.dry_run,
             config.no_capture,
             config.keep_going,
+            config.mtime,
         )
     } else if config.dry_run {
         Ok(true)
@@ -306,6 +294,7 @@ fn do_exec(
             config.no_capture,
             config.show_progress,
             config.keep_going,
+            config.mtime,
         )
     }
 }
@@ -418,7 +407,7 @@ fn watch(cli: &cli::Cli, run_cli: &cli::Run, config: &config::Config) -> Result<
             clear_term();
             warn_if_config_changed(&cli.config, initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
-            config.files = collect_files(cli, run_cli, config.mtime, config.show_progress)?;
+            config.files = collect_files(cli, run_cli, config.show_progress)?;
             run(&config)?;
         }
         last_run = time::Instant::now();
