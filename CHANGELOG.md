@@ -7,6 +7,7 @@
 - **BREAKING**: Split `[[tool]]` into `[[linter]]` and `[[formatter]]` arrays.
 - Add `taplo` to the known tools
 - Add global `ignore` array
+- Add working directory configuration to tools (`cd`)
 
 ## [0.2.0] - 2025-12-15
 

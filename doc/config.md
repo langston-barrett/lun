@@ -35,6 +35,7 @@ Each linter is defined in a `[[linter]]` table array.
   - `"batch"`: All files in one invocation
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect linter behavior. Changes to these files invalidate the cache.
+- `cd` (string, optional): Working directory for the linter.
 - `fix` (string, optional): Command to run to automatically fix issues (see `--fix`). If not specified, uses `cmd`.
 
 ## `[[formatter]]`
@@ -51,4 +52,5 @@ Each formatter is defined in a `[[formatter]]` table array.
   - `"batch"`: All files in one invocation
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect formatter behavior. Changes to these files invalidate the cache.
+- `cd` (string, optional): Working directory for the formatter.
 - `check` (string, optional): Command to run in check-only mode (no modifications). If not specified, uses `cmd`.

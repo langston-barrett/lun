@@ -14,6 +14,7 @@ pub(crate) struct Tool {
     pub(crate) ignore: Option<GlobSet>,
     pub(crate) granularity: Granularity,
     pub(crate) stamp: Stamp,
+    pub(crate) cd: Option<std::path::PathBuf>,
 }
 
 impl Tool {

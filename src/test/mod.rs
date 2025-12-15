@@ -261,13 +261,19 @@ fn command_to_string(cmd: &process::Command) -> String {
         .get_args()
         .map(|arg| arg.to_string_lossy().to_string())
         .collect();
-    format!("{} {}", program, args.join(" "))
+    let cmd_str = format!("{} {}", program, args.join(" "));
+    if let Some(cd_path) = cmd.get_current_dir() {
+        format!("cd {} && {}", cd_path.display(), cmd_str)
+    } else {
+        cmd_str
+    }
 }
 
 fn jobs_to_string(jobs: &[cmd::Command]) -> Vec<String> {
     let mut result = Vec::new();
     for job in jobs {
-        let cmd_str = command_to_string(&job.to_command());
+        let cmd = job.to_command();
+        let cmd_str = command_to_string(&cmd);
         result.push(cmd_str);
     }
     result
@@ -348,6 +354,7 @@ fn parse_test_file_debug() {
                                 ignore: [],
                                 granularity: Individual,
                                 configs: [],
+                                cd: None,
                             },
                             fix: None,
                         },
@@ -391,6 +398,7 @@ fn parse_test_file_debug() {
                                 ignore: [],
                                 granularity: Individual,
                                 configs: [],
+                                cd: None,
                             },
                             fix: None,
                         },
@@ -436,13 +444,18 @@ fn batch3() {
 }
 
 #[test]
-fn color() {
-    test("tests/color.md");
+fn cd() {
+    test("tests/cd.md");
 }
 
 #[test]
 fn changing_cli() {
     test("tests/changing-cli.md");
+}
+
+#[test]
+fn color() {
+    test("tests/color.md");
 }
 
 #[test]

@@ -12,5 +12,6 @@ A cache entry consists of the hash of the:
 - File content
 - File metadata, including size, owner UID and GID, and permissions (mode)
 - Tool command line
+- Tool working directory, if specified
 - Content of the linter configuration file(s), if specified
 - Output of the tool's `--version` flag (if `--careful` is used)
