@@ -14,7 +14,6 @@ mod init;
 mod job;
 mod known;
 mod log;
-mod mtime;
 mod ninja;
 mod plan;
 mod run;

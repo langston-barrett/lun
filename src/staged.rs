@@ -1,9 +1,9 @@
-use std::{path::Path, path::PathBuf, process};
+use std::{path::PathBuf, process};
 
 use anyhow::{Context as _, Result};
 use tracing::debug;
 
-use crate::{file, mtime};
+use crate::file;
 
 fn get_staged_files() -> Result<Vec<PathBuf>> {
     let output = process::Command::new("git")
@@ -28,18 +28,13 @@ fn get_staged_files() -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-pub(crate) fn collect_staged_files(
-    cache_dir: &Path,
-    mtime_enabled: bool,
-    config_path: &Path,
-) -> Result<Vec<file::File>> {
-    let last_run = mtime::last_run_time(cache_dir, mtime_enabled, config_path)?;
+pub(crate) fn collect_staged_files() -> Result<Vec<file::File>> {
     let staged_paths = get_staged_files()?;
     let mut files = Vec::new();
     let root = PathBuf::from(".");
     for path in staged_paths {
         let full_path = root.join(&path);
-        if !full_path.exists() || !last_run.needed(&path)? {
+        if !full_path.exists() {
             continue;
         }
         files.push(file::File::new(path)?);

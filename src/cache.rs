@@ -25,9 +25,16 @@ impl Key {
         Self { stamp, tool_stamp }
     }
 
-    pub(crate) fn from_file_and_tool(file: &file::File, tool: &tool::Tool) -> Self {
+    pub(crate) fn from_content(file: &file::File, tool: &tool::Tool) -> Self {
         Self {
-            stamp: file.stamp,
+            stamp: file.content_stamp(),
+            tool_stamp: tool.stamp,
+        }
+    }
+
+    pub(crate) fn from_mtime(file: &file::File, tool: &tool::Tool) -> Self {
+        Self {
+            stamp: file.mtime_stamp(),
             tool_stamp: tool.stamp,
         }
     }

@@ -19,6 +19,7 @@ pub(crate) fn exec(
     dry_run: bool,
     no_capture: bool,
     keep_going: bool,
+    mtime_enabled: bool,
 ) -> Result<bool> {
     let ninja_file = cache_dir.join("build.ninja");
     if batches.is_empty() {
@@ -73,8 +74,13 @@ pub(crate) fn exec(
         if executed_targets.contains(&target_name) {
             let tool = cmd.tool.clone();
             for file in &cmd.files {
-                let key = cache::Key::from_file_and_tool(file, &tool);
-                cache.done(&key);
+                debug_assert!(file.content_stamp.is_some()); // in plan.rs
+                let content_key = cache::Key::from_content(file, &tool);
+                cache.done(&content_key);
+                if mtime_enabled {
+                    let mtime_key = cache::Key::from_mtime(file, &tool);
+                    cache.done(&mtime_key);
+                }
             }
         }
     }

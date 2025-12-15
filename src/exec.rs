@@ -36,6 +36,7 @@ pub(crate) fn exec(
     no_capture: bool,
     format: ProgressFormat,
     keep_going: bool,
+    mtime_enabled: bool,
 ) -> Result<bool> {
     if batches.is_empty() {
         return Ok(true);
@@ -80,7 +81,11 @@ pub(crate) fn exec(
                     if success { "success" } else { "failed" },
                 );
                 tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
-                let hashes = if success { done(cmd)? } else { Vec::new() };
+                let hashes = if success {
+                    done(cmd, mtime_enabled)?
+                } else {
+                    Vec::new()
+                };
                 Ok((success, hashes))
             })
             .collect::<Result<Vec<_>>>()?;
@@ -209,12 +214,21 @@ fn run(
     }
 }
 
-fn done(cmd: cmd::Command) -> Result<Vec<cache::KeyHash>> {
+fn done(cmd: cmd::Command, mtime_enabled: bool) -> Result<Vec<cache::KeyHash>> {
     let tool = cmd.tool.clone();
-    let mut hashes = Vec::with_capacity(cmd.files.len());
+    let mut hashes = Vec::with_capacity(if mtime_enabled {
+        cmd.files.len() * 2
+    } else {
+        cmd.files.len()
+    });
     for file in &cmd.files {
-        let key = cache::Key::from_file_and_tool(file, &tool);
-        hashes.push(cache::KeyHash::from(&key));
+        debug_assert!(file.content_stamp.is_some()); // should happen in plan.rs
+        let content_key = cache::Key::from_content(file, &tool);
+        hashes.push(cache::KeyHash::from(&content_key));
+        if mtime_enabled {
+            let mtime_key = cache::Key::from_mtime(file, &tool);
+            hashes.push(cache::KeyHash::from(&mtime_key));
+        }
     }
     Ok(hashes)
 }
