@@ -53,6 +53,10 @@ pub(crate) struct Config {
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
+    pub(crate) ignore: Vec<String>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) mtime: bool,
 
     #[serde(default)]
@@ -154,10 +158,15 @@ fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp
     Ok(tool::Stamp(file::Xxhash(hasher.digest())))
 }
 
-fn build_tool_globsets(tool: &Tool) -> Result<(GlobSet, Option<GlobSet>)> {
+fn build_tool_globsets(
+    tool: &Tool,
+    global_ignore: &[String],
+) -> Result<(GlobSet, Option<GlobSet>)> {
     let tool_name = tool.name.as_ref().unwrap_or(&tool.cmd);
     let files = build_files_globset(&tool.files, tool_name)?;
-    let ignore = build_ignore_globset(&tool.ignore, tool_name)?;
+    let mut all_ignore = global_ignore.to_vec();
+    all_ignore.extend_from_slice(&tool.ignore);
+    let ignore = build_ignore_globset(&all_ignore, tool_name)?;
     Ok((files, ignore))
 }
 
@@ -167,6 +176,7 @@ impl Linter {
         mode: RunMode,
         careful: bool,
         color: crate::cli::log::Color,
+        global_ignore: &[String],
     ) -> Result<tool::Tool> {
         let color_str = color_to_str(color);
         let cmd = match mode {
@@ -180,7 +190,7 @@ impl Linter {
             RunMode::Check | RunMode::Normal => self.tool.cmd.replace("{{color}}", color_str),
         };
 
-        let (files, ignore) = build_tool_globsets(&self.tool)?;
+        let (files, ignore) = build_tool_globsets(&self.tool, global_ignore)?;
         let stamp = build_tool_stamp(&self.tool, &cmd, careful)?;
 
         Ok(tool::Tool {
@@ -200,6 +210,7 @@ impl Formatter {
         mode: RunMode,
         careful: bool,
         color: crate::cli::log::Color,
+        global_ignore: &[String],
     ) -> Result<tool::Tool> {
         let color_str = color_to_str(color);
         let cmd = match mode {
@@ -213,7 +224,7 @@ impl Formatter {
             RunMode::Fix | RunMode::Normal => self.tool.cmd.replace("{{color}}", color_str),
         };
 
-        let (files, ignore) = build_tool_globsets(&self.tool)?;
+        let (files, ignore) = build_tool_globsets(&self.tool, global_ignore)?;
         let stamp = build_tool_stamp(&self.tool, &cmd, careful)?;
 
         Ok(tool::Tool {

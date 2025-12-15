@@ -140,14 +140,22 @@ fn filter_tools(
     if !run.format {
         for linter in &config.linter {
             if include_tool(&linter.tool, run) {
-                tools.push(linter.clone().into_tool(mode, careful, color)?);
+                tools.push(
+                    linter
+                        .clone()
+                        .into_tool(mode, careful, color, &config.ignore)?,
+                );
             }
         }
     }
 
     for formatter in &config.formatter {
         if include_tool(&formatter.tool, run) {
-            tools.push(formatter.clone().into_tool(mode, careful, color)?);
+            tools.push(
+                formatter
+                    .clone()
+                    .into_tool(mode, careful, color, &config.ignore)?,
+            );
         }
     }
 

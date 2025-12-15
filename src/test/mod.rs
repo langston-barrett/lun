@@ -169,6 +169,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                     cores: None,
                     mtime: false,
                     ninja: None,
+                    ignore: Vec::new(),
                 },
                 files,
                 expected_output: Vec::new(),
@@ -274,15 +275,22 @@ fn test(path: &'static str) {
             .linter
             .iter()
             .cloned()
-            .map(|t| t.into_tool(run_mode, false, cli::log::Color::Auto))
-            .chain(
-                scenario
-                    .config
-                    .formatter
-                    .iter()
-                    .cloned()
-                    .map(|t| t.into_tool(run_mode, false, cli::log::Color::Auto)),
-            )
+            .map(|t| {
+                t.into_tool(
+                    run_mode,
+                    false,
+                    cli::log::Color::Auto,
+                    &scenario.config.ignore,
+                )
+            })
+            .chain(scenario.config.formatter.iter().cloned().map(|t| {
+                t.into_tool(
+                    run_mode,
+                    false,
+                    cli::log::Color::Auto,
+                    &scenario.config.ignore,
+                )
+            }))
             .collect::<Result<Vec<_>>>()
             .unwrap();
         let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch).unwrap();
@@ -331,6 +339,7 @@ fn parse_test_file_debug() {
                     formatter: [],
                     careful: false,
                     cores: None,
+                    ignore: [],
                     mtime: false,
                     ninja: None,
                     refs: [],
@@ -372,6 +381,7 @@ fn parse_test_file_debug() {
                     formatter: [],
                     careful: false,
                     cores: None,
+                    ignore: [],
                     mtime: false,
                     ninja: None,
                     refs: [],
