@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs, io,
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -61,9 +61,20 @@ pub(crate) struct Config {
 }
 
 impl Config {
-    pub(crate) fn load(path: &Path) -> Result<Self> {
-        let contents = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+    pub(crate) fn load(path: &Path) -> Result<Option<Self>> {
+        debug!("Loading config file from {}", path.display());
+        let r = fs::read_to_string(path);
+        let contents = match r {
+            Ok(s) => s,
+            Err(e) => match e.kind() {
+                io::ErrorKind::NotFound => {
+                    debug!("No config at {}", path.display());
+                    return Ok(None);
+                }
+                _ => Err(e)
+                    .with_context(|| format!("Failed to read config file: {}", path.display()))?,
+            },
+        };
         toml::from_str(&contents)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))
     }
