@@ -59,6 +59,7 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
         cores: init.cores,
         mtime: init.mtime,
         ninja: None,
+        ignore: Vec::new(),
         warns: config::WarnCfg {
             allow: init.allow.clone(),
             warn: init.warn.clone(),

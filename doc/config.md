@@ -11,6 +11,7 @@ The configuration file (`lun.toml` by default) is written in [TOML].
 - `mtime` (boolean, default: `false`): Use file modification times.
 - `ninja` (boolean, default: `false`): Enable or disable Ninja build file generation.
 - `refs` (array of strings, default: `[]`): Git refs to compare against when determining which files to check.
+- `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that all tools should ignore.
 - `linter` (array of tables): Array of linter configurations, see below.
 - `formatter` (array of tables): Array of formatter configurations, see below.
 
