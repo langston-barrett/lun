@@ -6,7 +6,7 @@ refs = ["origin/main"]
 [[tool]]
 name = "cargo clippy"
 cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
-files = "*.rs"
+files = ["*.rs"]
 granularity = "batch"
 configs = ["Cargo.toml"]
 fix = "cargo clippy --color=always --allow-dirty --fix"
@@ -14,7 +14,7 @@ fix = "cargo clippy --color=always --allow-dirty --fix"
 [[tool]]
 name = "cargo fmt"
 cmd = "cargo fmt --"
-files = "*.rs"
+files = ["*.rs"]
 granularity = "batch"
 configs = ["Cargo.toml"]
 check = "cargo fmt --check"
@@ -23,27 +23,27 @@ formatter = true
 [[tool]]
 name = "mdlynx"
 cmd = "mdlynx --"
-files = "*.md"
+files = ["*.md"]
 
 [[tool]]
 name = "shellcheck"
 cmd = "shellcheck --color=always --"
-files = "*.sh"
+files = ["*.sh"]
 
 [[tool]]
 name = "ttlint"
 cmd = "ttlint --"
-files = "*"
+files = ["*"]
 fix = "ttlint --fix --"
 
 [[tool]]
 name = "typos"
 cmd = "typos --"
-files = "*.md"
+files = ["*.md"]
 fix = "typos --write-changes --"
 
 [[tool]]
 name = "zizmor"
 cmd = "zizmor --"
-files = ".github/**/*.yml"
+files = [".github/**/*.yml"]
 fix = "zizmor --fix=safe --"

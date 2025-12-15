@@ -4,6 +4,8 @@
 
 ## next
 
+- `tool.files` now requires a list of globs
+- Add `tool.ignore` for ignoring a list of globs
 - Add more flags and tools to `--init`
 - Ignore mtimes if `lun.toml` has changed
 - Fix GitHub Actions

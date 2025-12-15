@@ -19,12 +19,18 @@ fn tool_commands(
     let matching_files = files
         .iter()
         .filter(|f| {
-            if tool.files.is_match(&f.path) {
-                debug!("Match: {}", f.path.display());
-                true
-            } else {
-                false
+            let path = f.path.as_path();
+            if !tool.files.is_match(path) {
+                return false;
             }
+            if let Some(ignore) = &tool.ignore
+                && ignore.is_match(path)
+            {
+                debug!("Ignored: {}", f.path.display());
+                return false;
+            }
+            debug!("Match: {}", f.path.display());
+            true
         })
         .collect::<Vec<_>>();
     if matching_files.is_empty() {

@@ -333,6 +333,7 @@ pub(crate) fn go(
 fn lint(run_cli: &cli::Run, config: &config::Config, lints: &Warns) -> Result<(), anyhow::Error> {
     warn::check_unknown_tools(lints, &run_cli.skip_tool, &run_cli.only_tool, config)?;
     warn::check_unlisted_config(lints, config)?;
+    warn::check_no_files(lints, config)?;
     warn::check_careful(lints, run_cli.careful, config.careful)?;
     warn::check_mtime(lints, run_cli.mtime, config.mtime)?;
     warn::check_refs(lints, &run_cli.refs, &config.refs)?;

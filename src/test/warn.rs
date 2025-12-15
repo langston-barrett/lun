@@ -21,7 +21,7 @@ fn unknown_tool_success() {
 [[tool]]
 name = "mylinter"
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     )
@@ -41,7 +41,7 @@ fn unknown_tool_failure() {
 [[tool]]
 name = "mylinter"
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     );
@@ -56,7 +56,7 @@ fn careful_success() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     )
@@ -70,7 +70,7 @@ fn careful_failure() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     );
@@ -85,7 +85,7 @@ fn mtime_success() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     )
@@ -99,7 +99,7 @@ fn mtime_failure() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     );
@@ -114,7 +114,7 @@ fn refs_success() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     )
@@ -128,7 +128,7 @@ fn refs_failure() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     );
@@ -143,7 +143,7 @@ fn unknown_warn_success() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     )
@@ -157,10 +157,39 @@ fn unknown_warn_failure() {
         r#"
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
     expect!["found unknown warning names and --deny=unknown-lint"].assert_eq(&error_display);
+}
+
+#[test]
+fn no_files_success() {
+    test(
+        &["--allow=no-files", "run", "--dry-run"],
+        r#"
+[[tool]]
+cmd = "lint --"
+files = []
+granularity = "individual"
+"#,
+    )
+    .unwrap();
+}
+
+#[test]
+fn no_files_failure() {
+    let result = test(
+        &["run", "--dry-run"],
+        r#"
+[[tool]]
+cmd = "lint --"
+files = []
+granularity = "individual"
+"#,
+    );
+    let error_display = format!("{:#}", result.unwrap_err());
+    expect!["found tools with empty `files` arrays and --deny=no-files"].assert_eq(&error_display);
 }

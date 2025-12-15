@@ -84,7 +84,7 @@ mod tests {
             [[tool]]
             name = "cargo clippy"
             cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
-            files = "*.rs"
+            files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
@@ -92,7 +92,7 @@ mod tests {
             [[tool]]
             name = "ruff check"
             cmd = "ruff check --"
-            files = "*.py"
+            files = ["*.py"]
             fix = "ruff check --fix --"
         "#]]
         .assert_eq(&toml);
@@ -116,7 +116,7 @@ mod tests {
             [[tool]]
             name = "cargo clippy"
             cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
-            files = "*.rs"
+            files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
             fix = "cargo clippy --color=always --allow-dirty --fix"
@@ -124,7 +124,7 @@ mod tests {
             [[tool]]
             name = "cargo fmt"
             cmd = "cargo fmt --"
-            files = "*.rs"
+            files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
             check = "cargo fmt --check"

@@ -318,7 +318,10 @@ fn parse_test_file_debug() {
                         Tool {
                             name: None,
                             cmd: "lint --",
-                            files: "*.py",
+                            files: [
+                                "*.py",
+                            ],
+                            ignore: [],
                             granularity: Individual,
                             configs: [],
                             check: None,
@@ -355,7 +358,10 @@ fn parse_test_file_debug() {
                         Tool {
                             name: None,
                             cmd: "lint --some-flag --",
-                            files: "*.py",
+                            files: [
+                                "*.py",
+                            ],
+                            ignore: [],
                             granularity: Individual,
                             configs: [],
                             check: None,

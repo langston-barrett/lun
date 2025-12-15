@@ -9,7 +9,7 @@ Test that changing the command line results in re-running the tool.
 ```toml
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 ```
 
@@ -30,7 +30,7 @@ lint -- file.py
 ```toml
 [[tool]]
 cmd = "lint --some-flag --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 ```
 

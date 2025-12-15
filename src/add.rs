@@ -20,7 +20,7 @@ fn gen_tool(options: &cli::Add) -> Result<config::Tool, anyhow::Error> {
         tool.cmd = cmd.clone();
     }
     if let Some(files) = &options.files {
-        tool.files = files.clone();
+        tool.files = vec![files.clone()];
     }
     if let Some(check) = &options.check {
         tool.check = Some(check.clone());

@@ -12,6 +12,7 @@ pub(crate) enum Warn {
     Careful,
     Mtime,
     Refs,
+    NoFiles,
 }
 
 impl fmt::Display for Warn {
@@ -30,6 +31,7 @@ impl Warn {
             Warn::Careful => level::Level::Allow,
             Warn::Mtime => level::Level::Allow,
             Warn::Refs => level::Level::Allow,
+            Warn::NoFiles => level::Level::Deny,
         }
     }
 
@@ -42,6 +44,7 @@ impl Warn {
             Warn::Careful => "careful",
             Warn::Mtime => "mtime",
             Warn::Refs => "refs",
+            Warn::NoFiles => "no-files",
         }
     }
 
@@ -54,6 +57,7 @@ impl Warn {
             Warn::Careful => include_str!("../../doc/warns/careful.md"),
             Warn::Mtime => include_str!("../../doc/warns/mtime.md"),
             Warn::Refs => include_str!("../../doc/warns/refs.md"),
+            Warn::NoFiles => include_str!("../../doc/warns/no-files.md"),
         }
     }
 
@@ -66,6 +70,7 @@ impl Warn {
             Warn::Careful => "`careful` is not set at CLI or config level",
             Warn::Mtime => "`mtime` is set on CLI or config file",
             Warn::Refs => "`refs` is used on CLI or config file",
+            Warn::NoFiles => "Tool has empty `files` array",
         }
     }
 
@@ -78,6 +83,7 @@ impl Warn {
             Warn::Careful,
             Warn::Mtime,
             Warn::Refs,
+            Warn::NoFiles,
         ]
     }
 }
@@ -93,6 +99,7 @@ impl FromStr for Warn {
             "careful" => Ok(Warn::Careful),
             "mtime" => Ok(Warn::Mtime),
             "refs" => Ok(Warn::Refs),
+            "no-files" => Ok(Warn::NoFiles),
             _ => Err(()),
         }
     }

@@ -22,6 +22,10 @@ for `WARN`.
 
 {{#include warns/mtime.md:2:}}
 
+## `no-files`
+
+{{#include warns/no-files.md:2:}}
+
 ## `refs`
 
 {{#include warns/refs.md:2:}}
