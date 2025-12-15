@@ -78,7 +78,7 @@ fn main() -> Result<()> {
     let cli = cli::Cli::parse();
     log::init_tracing(cli.log);
     trace!(?cli);
-    let config = config::Config::load(&cli.config).ok();
+    let config = config::Config::load(&cli.config)?;
     trace!(?config);
     let ok = go(cli, config)?;
     if !ok {
