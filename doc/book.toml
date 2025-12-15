@@ -3,3 +3,7 @@ authors = ["Langston Barrett"]
 language = "en"
 src = "."
 title = "lun"
+
+[output.html]
+git-repository-url = "https://github.com/langston-barrett/lun/tree/main/doc"
+edit-url-template = "https://github.com/langston-barrett/lun/edit/main/doc/{path}"
