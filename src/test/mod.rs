@@ -19,6 +19,7 @@ struct TestScenario {
     config: crate::config::Config,
     files: Vec<TestFile>,
     expected_output: Vec<String>,
+    failed_commands: Vec<String>,
     run: Option<cli::Run>,
     color: cli::log::Color,
 }
@@ -83,6 +84,34 @@ fn process_output_section(scenario: &mut TestScenario, content: &str) {
     }
 }
 
+fn process_fail_section(scenario: &mut TestScenario, content: &str) {
+    // Parse fail section: same format as output section
+    let mut batches = Vec::new();
+    let mut current_batch = Vec::new();
+    for fail_line in content.lines() {
+        let trimmed = fail_line.trim();
+        if trimmed.is_empty() {
+            // Blank line separates batches
+            if !current_batch.is_empty() {
+                batches.push(std::mem::take(&mut current_batch));
+            }
+        } else {
+            current_batch.push(trimmed.to_string());
+        }
+    }
+    // Add remaining batch if any
+    if !current_batch.is_empty() {
+        batches.push(current_batch);
+    }
+    // Flatten batches with blank lines between them
+    for (i, batch) in batches.iter().enumerate() {
+        if i > 0 {
+            scenario.failed_commands.push(String::new());
+        }
+        scenario.failed_commands.append(&mut batch.clone());
+    }
+}
+
 fn process_flags_section(scenario: &mut TestScenario, content: &str) {
     let mut args = vec!["lun".to_string()];
     for flag_line in content.lines() {
@@ -137,6 +166,7 @@ fn process_section_content(
     match section {
         "config" => process_config_section(scenario, content, path)?,
         "output" => process_output_section(scenario, content),
+        "fail" => process_fail_section(scenario, content),
         "flags" => process_flags_section(scenario, content),
         _ => {}
     }
@@ -188,6 +218,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                 },
                 files,
                 expected_output: Vec::new(),
+                failed_commands: Vec::new(),
                 run: None,
                 color: cli::log::Color::Auto,
             });
@@ -208,6 +239,10 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
             }
         } else if line == "### Output" {
             current_section = Some("output".to_string());
+            current_content.clear();
+            in_code_block = false;
+        } else if line == "### Fail" {
+            current_section = Some("fail".to_string());
             current_content.clear();
             in_code_block = false;
         } else if line == "### Flags" {
@@ -329,11 +364,22 @@ fn test(path: &'static str) {
             i + 1
         );
         // Simulate executing batches by marking commands as done in the cache
+        // Skip commands that are in the failed_commands list
+        let failed_set: std::collections::HashSet<String> = scenario
+            .failed_commands
+            .iter()
+            .filter(|s| !s.is_empty())
+            .cloned()
+            .collect();
         for cmd in &batches {
-            let tool = cmd.tool.clone();
-            for file in &cmd.files {
-                let key = cache::Key::new(file.content_stamp(), tool.stamp);
-                cache.done(&key);
+            let cmd_str = command_to_string(&cmd.to_command());
+            // Only mark as done if this command is not in the failed list
+            if !failed_set.contains(&cmd_str) {
+                let tool = cmd.tool.clone();
+                for file in &cmd.files {
+                    let key = cache::Key::new(file.content_stamp(), tool.stamp);
+                    cache.done(&key);
+                }
             }
         }
     }
@@ -387,6 +433,7 @@ fn parse_test_file_debug() {
                 expected_output: [
                     "lint -- file.py",
                 ],
+                failed_commands: [],
                 run: None,
                 color: Auto,
             },
@@ -431,6 +478,7 @@ fn parse_test_file_debug() {
                 expected_output: [
                     "lint --some-flag -- file.py",
                 ],
+                failed_commands: [],
                 run: None,
                 color: Auto,
             },
@@ -461,6 +509,11 @@ fn changing_cli() {
 #[test]
 fn color() {
     test("tests/color.md");
+}
+
+#[test]
+fn fail() {
+    test("tests/fail.md");
 }
 
 #[test]
