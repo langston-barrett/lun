@@ -8,7 +8,7 @@ The configuration file (`lun.toml` by default) is written in [TOML].
 
 - `careful` (boolean, default: `false`): Include tool version in cache keys for more conservative caching.
 - `cores` (integer, optional): Number of parallel jobs to run. If not specified, uses the number of CPU cores.
-- `mtime` (boolean, default: `false`): Use file modification times.
+- `mtime` (boolean, default: `true`): Use file modification times (see [Caching](cache.md)).
 - `ninja` (boolean, default: `false`): Enable or disable Ninja build file generation.
 - `refs` (array of strings, default: `[]`): Git refs to compare against when determining which files to check.
 - `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that all tools should ignore.
@@ -31,8 +31,8 @@ Each linter is defined in a `[[linter]]` table array.
 - `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that this linter should ignore.
 - `granularity` (string, default: `"individual"`): How files are passed to the linter:
 
-  - `"individual"`: One file per invocation
-  - `"batch"`: All files in one invocation
+  - `"individual"`: Any number of files per invocation, passed on the command line
+  - `"batch"`: All files in one invocation, not passed on the command line
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect linter behavior. Changes to these files invalidate the cache.
 - `cd` (string, optional): Working directory for the linter.
@@ -48,8 +48,8 @@ Each formatter is defined in a `[[formatter]]` table array.
 - `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that this formatter should ignore.
 - `granularity` (string, default: `"individual"`): How files are passed to the formatter:
 
-  - `"individual"`: One file per invocation
-  - `"batch"`: All files in one invocation
+  - `"individual"`: Any number of files per invocation, passed on the command line
+  - `"batch"`: All files in one invocation, not passed on the command line
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect formatter behavior. Changes to these files invalidate the cache.
 - `cd` (string, optional): Working directory for the formatter.
