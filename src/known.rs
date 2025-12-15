@@ -7,7 +7,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some(String::from("cargo clippy")),
             cmd: "cargo clippy --color=always --all-targets -- --deny warnings".to_string(),
-            files: "*.rs".to_string(),
+            files: vec!["*.rs".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Batch,
             configs: vec![PathBuf::from("Cargo.toml")],
             check: None,
@@ -17,7 +18,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some(String::from("cargo fmt")),
             cmd: "cargo fmt --".to_string(),
-            files: "*.rs".to_string(),
+            files: vec!["*.rs".to_string()],
+            ignore: Vec::new(),
             // This is usually faster as a batch, Cargo is magic
             granularity: Granularity::Batch,
             configs: vec![
@@ -32,7 +34,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: None,
             cmd: "hlint --".to_string(),
-            files: "*.hs".to_string(),
+            files: vec!["*.hs".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![PathBuf::from(".hlint.yml"), PathBuf::from(".hlint.yaml")],
             check: None,
@@ -42,7 +45,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some(String::from("mdlynx")),
             cmd: "mdlynx --".to_string(),
-            files: "*.md".to_string(),
+            files: vec!["*.md".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: Vec::new(),
             check: None,
@@ -52,7 +56,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some(String::from("mypy")),
             cmd: "mypy --strict --".to_string(),
-            files: "*.py".to_string(),
+            files: vec!["*.py".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![
                 PathBuf::from("pyproject.toml"),
@@ -66,7 +71,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some(String::from("ruff check")),
             cmd: "ruff check --".to_string(),
-            files: "*.py".to_string(),
+            files: vec!["*.py".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![
                 PathBuf::from("pyproject.toml"),
@@ -80,7 +86,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("ruff format".to_string()),
             cmd: "ruff format --".to_string(),
-            files: "*.py".to_string(),
+            files: vec!["*.py".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![PathBuf::from("ruff.toml"), PathBuf::from(".ruff.toml")],
             check: Some("ruff format --check --".to_string()),
@@ -90,7 +97,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("shellcheck".to_string()),
             cmd: "shellcheck --color=always --".to_string(),
-            files: "*.sh".to_string(),
+            files: vec!["*.sh".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![PathBuf::from(".shellcheckrc")],
             check: None,
@@ -100,7 +108,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("ty".to_string()),
             cmd: "ty check --".to_string(),
-            files: "*.py".to_string(),
+            files: vec!["*.py".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Batch,
             configs: vec![PathBuf::from("pyproject.toml"), PathBuf::from("ty.toml")],
             check: None,
@@ -110,7 +119,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("ttlint".to_string()),
             cmd: "ttlint --".to_string(),
-            files: "*".to_string(),
+            files: vec!["*".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: Vec::new(),
             check: None,
@@ -120,7 +130,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("typos".to_string()),
             cmd: "typos --".to_string(),
-            files: "*.md".to_string(),
+            files: vec!["*.md".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![
                 PathBuf::from("typos.toml"),
@@ -134,7 +145,8 @@ pub(crate) fn known_tools() -> Vec<config::Tool> {
         config::Tool {
             name: Some("zizmor".to_string()),
             cmd: "zizmor --".to_string(),
-            files: ".github/**/*.yml".to_string(),
+            files: vec![".github/**/*.yml".to_string()],
+            ignore: Vec::new(),
             granularity: Granularity::Individual,
             configs: vec![PathBuf::from("zizmor.yml"), PathBuf::from("zizmor.yaml")],
             check: None,

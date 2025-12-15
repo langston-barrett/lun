@@ -9,7 +9,7 @@ cores = 2
 
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 ```
 

@@ -246,3 +246,43 @@ pub(crate) fn check_refs(
 
     Ok(())
 }
+
+pub(crate) fn check_no_files(lints: &Warns, config: &config::Config) -> anyhow::Result<()> {
+    let level = lints.level(Warn::NoFiles);
+    if matches!(level, level::Level::Allow) {
+        return Ok(());
+    }
+
+    let mut no_files_tools = Vec::new();
+
+    for tool in &config.tool {
+        if tool.files.is_empty() {
+            let tool_name = tool.name.as_deref().unwrap_or(&tool.cmd);
+            no_files_tools.push(tool_name.to_string());
+        }
+    }
+
+    if no_files_tools.is_empty() {
+        return Ok(());
+    }
+
+    match level {
+        level::Level::Allow => {}
+        level::Level::Warn => {
+            for tool_name in &no_files_tools {
+                warn!("tool `{tool_name}` has empty `files` array");
+            }
+        }
+        level::Level::Deny => {
+            for tool_name in &no_files_tools {
+                error!("tool `{tool_name}` has empty `files` array");
+            }
+            bail!(
+                "found tools with empty `files` arrays and --deny={}",
+                Warn::NoFiles.as_str()
+            );
+        }
+    }
+
+    Ok(())
+}

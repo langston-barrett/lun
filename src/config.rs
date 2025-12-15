@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{Context as _, Result};
-use globset::Glob;
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use tracing::debug;
 
 use crate::{file, tool};
@@ -84,7 +84,10 @@ pub(crate) struct Tool {
     #[serde(skip_serializing_if = "default")]
     pub(crate) name: Option<String>,
     pub(crate) cmd: String,
-    pub(crate) files: String,
+    pub(crate) files: Vec<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) ignore: Vec<String>,
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) granularity: Granularity,
@@ -104,29 +107,10 @@ pub(crate) struct Tool {
 
 impl Tool {
     pub(crate) fn into_tool(self, careful: bool) -> Result<tool::Tool> {
-        let config = if self.configs.is_empty() {
-            None
-        } else {
-            let mut sorted = self.configs;
-            sorted.sort();
-            let mut combined = Vec::new();
-            for path in &sorted {
-                let content = fs::read_to_string(path)
-                    .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-                combined.extend_from_slice(path.as_os_str().as_encoded_bytes());
-                combined.extend_from_slice(content.as_bytes());
-            }
-            Some(file::compute_hash(&combined))
-        };
-        let files = Glob::new(&self.files)
-            .with_context(|| {
-                format!(
-                    "Invalid glob {} for {}",
-                    self.files,
-                    self.name.as_ref().unwrap_or(&self.cmd)
-                )
-            })?
-            .compile_matcher();
+        let config = build_config_hash(&self.configs)?;
+        let tool_name = self.name.as_ref().unwrap_or(&self.cmd);
+        let files = build_files_globset(&self.files, tool_name)?;
+        let ignore = build_ignore_globset(&self.ignore, tool_name)?;
 
         let version = if careful {
             get_tool_version(&self.cmd).map(|s| file::compute_hash(s.as_bytes()))
@@ -138,6 +122,7 @@ impl Tool {
             name: self.name,
             cmd: self.cmd,
             files,
+            ignore,
             granularity: self.granularity,
             config,
             check: self.check,
@@ -146,6 +131,50 @@ impl Tool {
             version,
         })
     }
+}
+
+fn build_config_hash(configs: &[PathBuf]) -> Result<Option<file::Xxhash>> {
+    if configs.is_empty() {
+        return Ok(None);
+    }
+    let mut sorted = configs.to_vec();
+    sorted.sort();
+    let mut combined = Vec::new();
+    for path in &sorted {
+        let content = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        combined.extend_from_slice(path.as_os_str().as_encoded_bytes());
+        combined.extend_from_slice(content.as_bytes());
+    }
+    Ok(Some(file::compute_hash(&combined)))
+}
+
+fn build_files_globset(patterns: &[String], tool_name: &str) -> Result<GlobSet> {
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        let glob = Glob::new(pattern)
+            .with_context(|| format!("Invalid `files` glob `{pattern}` for `{tool_name}`"))?;
+        builder.add(glob);
+    }
+    builder
+        .build()
+        .with_context(|| format!("Failed to build `files` glob set for `{tool_name}`"))
+}
+
+fn build_ignore_globset(patterns: &[String], tool_name: &str) -> Result<Option<GlobSet>> {
+    if patterns.is_empty() {
+        return Ok(None);
+    }
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        let glob = Glob::new(pattern)
+            .with_context(|| format!("Invalid `ignore` glob `{pattern}` for `{tool_name}`"))?;
+        builder.add(glob);
+    }
+    builder
+        .build()
+        .with_context(|| format!("Failed to build `ignore` glob set for `{tool_name}`"))
+        .map(Some)
 }
 
 fn get_tool_version(cmd: &str) -> Option<String> {

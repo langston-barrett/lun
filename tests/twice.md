@@ -9,7 +9,7 @@ Test that when nothing has changed, commands are not rerun.
 ```toml
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 ```
 
@@ -30,7 +30,7 @@ lint -- file.py
 ```toml
 [[tool]]
 cmd = "lint --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 ```
 

@@ -25,7 +25,8 @@ Each tool is defined in a `[[tool]]` table array.
 
 - `name` (string, optional): Display name for the tool. If not specified, uses the command.
 - `cmd` (string, required): Command to run for the tool.
-- `files` (string, required): Glob pattern matching files that this tool should process.
+- `files` (array of strings, required): Glob pattern(s) matching files that this tool should process.
+- `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that this tool should ignore.
 - `granularity` (string, default: `"individual"`): How files are passed to the tool:
 
   - `"individual"`: One file per invocation

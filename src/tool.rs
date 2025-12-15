@@ -1,4 +1,4 @@
-use globset::GlobMatcher;
+use globset::GlobSet;
 
 use crate::{config::Granularity, file::Xxhash, run::RunMode};
 
@@ -6,7 +6,8 @@ use crate::{config::Granularity, file::Xxhash, run::RunMode};
 pub(crate) struct Tool {
     pub(crate) name: Option<String>,
     pub(crate) cmd: String,
-    pub(crate) files: GlobMatcher,
+    pub(crate) files: GlobSet,
+    pub(crate) ignore: Option<GlobSet>,
     pub(crate) granularity: Granularity,
     pub(crate) config: Option<Xxhash>,
     pub(crate) check: Option<String>,

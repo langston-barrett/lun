@@ -10,7 +10,7 @@ Test that formatters run.
 [[tool]]
 cmd = "fmt --"
 check = "fmt --check --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 formatter = true
 ```
@@ -33,7 +33,7 @@ fmt -- file.py
 [[tool]]
 cmd = "fmt --"
 check = "fmt --check --"
-files = "*.py"
+files = ["*.py"]
 granularity = "individual"
 formatter = true
 ```
