@@ -12,6 +12,7 @@ use rayon::prelude::*;
 use tracing::{debug, error, trace};
 
 use crate::cache::CacheWriter;
+use crate::job;
 use crate::{cache, cmd, run::RunMode};
 
 #[derive(Debug)]
@@ -27,17 +28,7 @@ pub(crate) enum ProgressFormat {
     Newline,
 }
 
-fn display_cmd(c: &process::Command) -> String {
-    format!(
-        "{} {}",
-        c.get_program().display(),
-        c.get_args()
-            .map(|a| a.display().to_string())
-            .collect::<Vec<_>>()
-            .join(" ")
-    )
-}
-
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
     cache_writer: &mut impl CacheWriter,
     batches: Vec<cmd::Command>,
@@ -73,7 +64,7 @@ pub(crate) fn exec(
                 }
 
                 let c = cmd.to_command(mode);
-                let cmd_str = display_cmd(&c);
+                let cmd_str = job::display_cmd(&c);
                 debug!("Running {}", cmd_str);
                 tx.send(ReporterEvent::Start {
                     cmd: cmd_str.clone(),
