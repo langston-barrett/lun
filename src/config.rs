@@ -116,6 +116,9 @@ pub(crate) struct Tool {
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) configs: Vec<PathBuf>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) cd: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -154,6 +157,9 @@ fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp
     }
     if let Some(version_hash) = version {
         hasher.update(&version_hash.0.to_le_bytes());
+    }
+    if let Some(cd) = &tool.cd {
+        hasher.update(cd.as_os_str().as_encoded_bytes());
     }
     Ok(tool::Stamp(file::Xxhash(hasher.digest())))
 }
@@ -200,6 +206,7 @@ impl Linter {
             ignore,
             granularity: self.tool.granularity,
             stamp,
+            cd: self.tool.cd,
         })
     }
 }
@@ -234,6 +241,7 @@ impl Formatter {
             ignore,
             granularity: self.tool.granularity,
             stamp,
+            cd: self.tool.cd,
         })
     }
 }
