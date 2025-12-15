@@ -118,8 +118,8 @@ pub(crate) struct Tool {
 
 impl Tool {
     pub(crate) fn into_tool(self, careful: bool) -> Result<tool::Tool> {
-        let config = build_config_hash(&self.configs)?;
         let tool_name = self.name.as_ref().unwrap_or(&self.cmd);
+        let config = build_config_hash(tool_name, &self.configs)?;
         let files = build_files_globset(&self.files, tool_name)?;
         let ignore = build_ignore_globset(&self.ignore, tool_name)?;
 
@@ -144,7 +144,7 @@ impl Tool {
     }
 }
 
-fn build_config_hash(configs: &[PathBuf]) -> Result<Option<file::Xxhash>> {
+fn build_config_hash(tool: &str, configs: &[PathBuf]) -> Result<Option<file::Xxhash>> {
     if configs.is_empty() {
         return Ok(None);
     }
@@ -152,8 +152,12 @@ fn build_config_hash(configs: &[PathBuf]) -> Result<Option<file::Xxhash>> {
     sorted.sort();
     let mut combined = Vec::new();
     for path in &sorted {
-        let content = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        let content = fs::read_to_string(path).with_context(|| {
+            format!(
+                "Failed to read config file for `{tool}`: {}",
+                path.display()
+            )
+        })?;
         combined.extend_from_slice(path.as_os_str().as_encoded_bytes());
         combined.extend_from_slice(content.as_bytes());
     }

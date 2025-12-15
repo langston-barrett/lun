@@ -27,6 +27,17 @@ pub(crate) enum ProgressFormat {
     Newline,
 }
 
+fn display_cmd(c: &process::Command) -> String {
+    format!(
+        "{} {}",
+        c.get_program().display(),
+        c.get_args()
+            .map(|a| a.display().to_string())
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
+
 pub(crate) fn exec(
     cache_writer: &mut impl CacheWriter,
     batches: Vec<cmd::Command>,
@@ -62,32 +73,20 @@ pub(crate) fn exec(
                 }
 
                 let c = cmd.to_command(mode);
-                let cmd_str = format!(
-                    "{} {}",
-                    c.get_program().display(),
-                    c.get_args()
-                        .map(|a| a.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                );
+                let cmd_str = display_cmd(&c);
                 debug!("Running {}", cmd_str);
                 tx.send(ReporterEvent::Start {
                     cmd: cmd_str.clone(),
                 })
                 .ok();
-                let success = run(c, no_capture)?.success();
+                let success = run(c, &cmd_str, no_capture)?.success();
 
                 if !success {
                     failed.store(true, Ordering::Relaxed);
                 }
                 debug!(
-                    "Finished {} {} ({})",
-                    cmd.tool.cmd,
-                    cmd.files
-                        .iter()
-                        .map(|f| f.path.display().to_string())
-                        .collect::<Vec<_>>()
-                        .join(" "),
+                    "Finished {} ({})",
+                    cmd_str,
                     if success { "success" } else { "failed" },
                 );
                 tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
@@ -181,7 +180,11 @@ fn report(format: ProgressFormat, completed: usize, total: usize, cmd: &str) {
     drop(io::stderr().flush());
 }
 
-fn run(mut c: process::Command, no_capture: bool) -> Result<process::ExitStatus> {
+fn run(
+    mut c: process::Command,
+    displayed_command: &str,
+    no_capture: bool,
+) -> Result<process::ExitStatus> {
     // https://docs.astral.sh/ruff/faq/#how-can-i-disableforce-ruffs-color-output
     c.env("FORCE_COLOR", "1");
     // https://bixense.com/clicolors/
@@ -194,7 +197,7 @@ fn run(mut c: process::Command, no_capture: bool) -> Result<process::ExitStatus>
     if no_capture {
         let status = c
             .status()
-            .with_context(|| format!("Failed to execute command: {c:?}"))?;
+            .with_context(|| format!("Failed to execute command: {displayed_command}"))?;
         if !status.success() {
             error!("Command failed");
         }
@@ -202,7 +205,7 @@ fn run(mut c: process::Command, no_capture: bool) -> Result<process::ExitStatus>
     } else {
         let out = c
             .output()
-            .with_context(|| format!("Failed to execute command: {c:?}"))?;
+            .with_context(|| format!("Failed to execute command: {displayed_command}"))?;
         let success = out.status.success();
         if !out.stdout.is_empty() && success {
             trace!("{}", String::from_utf8_lossy(&out.stdout));

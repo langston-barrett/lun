@@ -65,6 +65,30 @@ fn collect_files(
     Ok(files)
 }
 
+fn only_matchers(only_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
+    let only = only_patterns
+        .iter()
+        .map(|pattern| {
+            Glob::new(pattern)
+                .with_context(|| format!("Invalid `only` glob pattern: {pattern}"))
+                .map(|g| g.compile_matcher())
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(only)
+}
+
+fn skip_matchers(skip_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
+    let skip = skip_patterns
+        .iter()
+        .map(|pattern| {
+            Glob::new(pattern)
+                .with_context(|| format!("Invalid `skip` glob pattern: {pattern}"))
+                .map(|g| g.compile_matcher())
+        })
+        .collect::<Result<Vec<_>>>()?;
+    Ok(skip)
+}
+
 pub(crate) fn filter_files(
     files: &mut Vec<file::File>,
     only_patterns: &[String],
@@ -74,23 +98,8 @@ pub(crate) fn filter_files(
         return Ok(());
     }
 
-    let only = only_patterns
-        .iter()
-        .map(|pattern| {
-            Glob::new(pattern)
-                .with_context(|| format!("Invalid glob pattern: {pattern}"))
-                .map(|g| g.compile_matcher())
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    let skip = skip_patterns
-        .iter()
-        .map(|pattern| {
-            Glob::new(pattern)
-                .with_context(|| format!("Invalid glob pattern: {pattern}"))
-                .map(|g| g.compile_matcher())
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let only = only_matchers(only_patterns)?;
+    let skip = skip_matchers(skip_patterns)?;
 
     files.retain(|file| {
         let path = file.path.as_path();
@@ -278,17 +287,17 @@ fn do_exec(
 
 fn then_else(config: &Config, result: &RunResult) -> Result<(), anyhow::Error> {
     let success = bool::from(result);
-    let cmd_to_run = if success {
-        config.then.as_deref()
+    let (which, cmd_to_run) = if success {
+        ("then", config.then.as_deref())
     } else {
-        config.r#else.as_deref()
+        ("else", config.r#else.as_deref())
     };
     if let Some(cmd) = cmd_to_run {
         let mut bash_cmd = process::Command::new("bash");
         bash_cmd.arg("-c").arg(cmd);
         let status = bash_cmd
             .status()
-            .with_context(|| format!("Failed to execute command: {cmd}"))?;
+            .with_context(|| format!("Failed to execute `{which}` command: {cmd}"))?;
         if !status.success() {
             return Ok(());
         }

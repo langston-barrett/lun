@@ -92,7 +92,14 @@ pub(crate) fn collect_files(
     for result in walker {
         let entry = result.with_context(|| "Failed to read directory entry")?;
         let path = entry.path();
-        if path.is_dir() || !last_run.needed(path)? {
+        if path.is_dir()
+            || !last_run.needed(path).with_context(|| {
+                format!(
+                    "Failed to check if {} was needed based on mtime",
+                    path.display()
+                )
+            })?
+        {
             continue;
         }
 
