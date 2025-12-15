@@ -4,16 +4,16 @@ set -euo pipefail
 
 tmp=$(mktemp)
 cat > "${tmp}" <<EOF
-[[tool]]
+[[linter]]
 cmd = "true"
 files = "*.rs"
-[[tool]]
+[[linter]]
 cmd = "true"
 files = "*.md"
-[[tool]]
+[[linter]]
 cmd = "true"
 files = "*.yml"
-[[tool]]
+[[linter]]
 cmd = "true"
 files = "*.toml"
 EOF

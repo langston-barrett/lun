@@ -9,7 +9,7 @@ Lūn requires a configuration file (usually `lun.toml`). An entry in this file
 specifies a linter or formatter and which files it operates on. For example:
 
 ```toml
-[[tool]]
+[[linter]]
 cmd = "ruff check"
 files = "*.py"
 ```

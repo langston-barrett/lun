@@ -54,11 +54,17 @@ pub(crate) fn check_unknown_tools(
     }
 
     // Collect all known tool names from config
-    let known_tools: HashSet<&str> = config
-        .tool
+    let mut known_tools: HashSet<&str> = config
+        .linter
         .iter()
-        .filter_map(|t| t.name.as_deref())
+        .filter_map(|t| t.tool.name.as_deref())
         .collect();
+    known_tools.extend(
+        config
+            .formatter
+            .iter()
+            .filter_map(|t| t.tool.name.as_deref()),
+    );
 
     let mut unknown_tools = Vec::new();
 
@@ -108,18 +114,20 @@ pub(crate) fn check_unlisted_config(lints: &Warns, config: &config::Config) -> a
     let known_tools_by_name = known::known_tools_by_name();
     let mut unlisted_configs = Vec::new();
 
-    for tool in &config.tool {
+    for tool in config
+        .linter
+        .iter()
+        .map(|l| &l.tool)
+        .chain(config.formatter.iter().map(|f| &f.tool))
+    {
         if let Some(tool_name) = &tool.name
             && let Some(known_tool) = known_tools_by_name.get(tool_name)
         {
-            // Check which configs from the known tool exist
             let existing_known_configs: Vec<&PathBuf> = known_tool
                 .configs
                 .iter()
-                .filter(|config_path| config_path.exists())
+                .filter(|config_path: &&PathBuf| config_path.exists())
                 .collect();
-
-            // Check which existing configs are not listed in the tool's configs
             let tool_configs_set: HashSet<&PathBuf> = tool.configs.iter().collect();
             for config_path in existing_known_configs {
                 if !tool_configs_set.contains(config_path) {
@@ -255,7 +263,12 @@ pub(crate) fn check_no_files(lints: &Warns, config: &config::Config) -> anyhow::
 
     let mut no_files_tools = Vec::new();
 
-    for tool in &config.tool {
+    for tool in config
+        .linter
+        .iter()
+        .map(|l| &l.tool)
+        .chain(config.formatter.iter().map(|f| &f.tool))
+    {
         if tool.files.is_empty() {
             let tool_name = tool.name.as_deref().unwrap_or(&tool.cmd);
             no_files_tools.push(tool_name.to_string());

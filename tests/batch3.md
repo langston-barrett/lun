@@ -10,7 +10,7 @@ balanced by size.
 ```toml
 cores = 3
 
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"

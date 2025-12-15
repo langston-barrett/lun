@@ -7,12 +7,11 @@ Test that formatters run.
 ### Config
 
 ```toml
-[[tool]]
+[[formatter]]
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
 granularity = "individual"
-formatter = true
 ```
 
 ### Files
@@ -30,12 +29,11 @@ fmt -- file.py
 ### Config
 
 ```toml
-[[tool]]
+[[formatter]]
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
 granularity = "individual"
-formatter = true
 ```
 
 ### Output

@@ -9,7 +9,7 @@ Test that --skip-files skips files matching the pattern.
 ```toml
 cores = 2
 
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"

@@ -7,7 +7,7 @@ Test that changing the command line results in re-running the tool.
 ### Config
 
 ```toml
-[[tool]]
+[[linter]]
 cmd = "lint --"
 files = ["*.py"]
 granularity = "individual"
@@ -28,7 +28,7 @@ lint -- file.py
 ### Config
 
 ```toml
-[[tool]]
+[[linter]]
 cmd = "lint --some-flag --"
 files = ["*.py"]
 granularity = "individual"

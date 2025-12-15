@@ -35,7 +35,13 @@ pub(crate) struct WarnCfg {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Config {
-    pub(crate) tool: Vec<Tool>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) linter: Vec<Linter>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) formatter: Vec<Formatter>,
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
@@ -89,7 +95,7 @@ pub(crate) enum Granularity {
     Batch,
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Tool {
     #[serde(default)]
@@ -106,72 +112,116 @@ pub(crate) struct Tool {
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) configs: Vec<PathBuf>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "default")]
-    pub(crate) check: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Linter {
+    #[serde(flatten)]
+    pub(crate) tool: Tool,
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) fix: Option<String>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "default")]
-    pub(crate) formatter: bool,
 }
 
-impl Tool {
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Formatter {
+    #[serde(flatten)]
+    pub(crate) tool: Tool,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) check: Option<String>,
+}
+
+fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp> {
+    let tool_name = tool.name.as_ref().unwrap_or(&tool.cmd);
+    let config = build_config_hash(tool_name, &tool.configs)?;
+    let version = if careful {
+        get_tool_version(&tool.cmd).map(|s| file::compute_hash(s.as_bytes()))
+    } else {
+        None
+    };
+
+    let mut hasher = xxhash_rust::xxh3::Xxh3::new();
+    hasher.update(cmd.as_bytes());
+    if let Some(config_hash) = config {
+        hasher.update(&config_hash.0.to_le_bytes());
+    }
+    if let Some(version_hash) = version {
+        hasher.update(&version_hash.0.to_le_bytes());
+    }
+    Ok(tool::Stamp(file::Xxhash(hasher.digest())))
+}
+
+fn build_tool_globsets(tool: &Tool) -> Result<(GlobSet, Option<GlobSet>)> {
+    let tool_name = tool.name.as_ref().unwrap_or(&tool.cmd);
+    let files = build_files_globset(&tool.files, tool_name)?;
+    let ignore = build_ignore_globset(&tool.ignore, tool_name)?;
+    Ok((files, ignore))
+}
+
+impl Linter {
     pub(crate) fn into_tool(
         self,
         mode: RunMode,
         careful: bool,
         color: crate::cli::log::Color,
     ) -> Result<tool::Tool> {
-        let tool_name = self.name.as_ref().unwrap_or(&self.cmd);
-        let config = build_config_hash(tool_name, &self.configs)?;
-        let files = build_files_globset(&self.files, tool_name)?;
-        let ignore = build_ignore_globset(&self.ignore, tool_name)?;
-
-        let version = if careful {
-            get_tool_version(&self.cmd).map(|s| file::compute_hash(s.as_bytes()))
-        } else {
-            None
-        };
-
         let color_str = color_to_str(color);
         let cmd = match mode {
             RunMode::Fix => {
                 if let Some(fix) = &self.fix {
                     fix.replace("{{color}}", color_str)
                 } else {
-                    self.cmd.replace("{{color}}", color_str)
+                    self.tool.cmd.replace("{{color}}", color_str)
                 }
             }
-            RunMode::Check => {
-                if self.formatter
-                    && let Some(check) = &self.check
-                {
-                    check.replace("{{color}}", color_str)
-                } else {
-                    self.cmd.replace("{{color}}", color_str)
-                }
-            }
-            RunMode::Normal => self.cmd.replace("{{color}}", color_str),
+            RunMode::Check | RunMode::Normal => self.tool.cmd.replace("{{color}}", color_str),
         };
 
-        let mut hasher = xxhash_rust::xxh3::Xxh3::new();
-        hasher.update(cmd.as_bytes());
-        if let Some(config_hash) = config {
-            hasher.update(&config_hash.0.to_le_bytes());
-        }
-        if let Some(version_hash) = version {
-            hasher.update(&version_hash.0.to_le_bytes());
-        }
-        let stamp = tool::Stamp(file::Xxhash(hasher.digest()));
+        let (files, ignore) = build_tool_globsets(&self.tool)?;
+        let stamp = build_tool_stamp(&self.tool, &cmd, careful)?;
 
         Ok(tool::Tool {
-            name: self.name,
+            name: self.tool.name,
             cmd,
             files,
             ignore,
-            granularity: self.granularity,
+            granularity: self.tool.granularity,
+            stamp,
+        })
+    }
+}
+
+impl Formatter {
+    pub(crate) fn into_tool(
+        self,
+        mode: RunMode,
+        careful: bool,
+        color: crate::cli::log::Color,
+    ) -> Result<tool::Tool> {
+        let color_str = color_to_str(color);
+        let cmd = match mode {
+            RunMode::Check => {
+                if let Some(check) = &self.check {
+                    check.replace("{{color}}", color_str)
+                } else {
+                    self.tool.cmd.replace("{{color}}", color_str)
+                }
+            }
+            RunMode::Fix | RunMode::Normal => self.tool.cmd.replace("{{color}}", color_str),
+        };
+
+        let (files, ignore) = build_tool_globsets(&self.tool)?;
+        let stamp = build_tool_stamp(&self.tool, &cmd, careful)?;
+
+        Ok(tool::Tool {
+            name: self.tool.name,
+            cmd,
+            files,
+            ignore,
+            granularity: self.tool.granularity,
             stamp,
         })
     }

@@ -5,7 +5,7 @@ set -euo pipefail
 ver=0.14.8
 
 cat > lun.toml <<EOF
-[[tool]]
+[[linter]]
 cmd = "rustfmt --check --"
 files = "crates/**/*.rs"
 granularity = "individual"
