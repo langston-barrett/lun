@@ -14,6 +14,10 @@ inputs:
     description: Target triple
     required: false
     default: 'x86_64-unknown-linux-gnu'
+  flags:
+    description: Flags to pass to `lun`
+    required: false
+    default: "-v"
   run-flags:
     description: Flags to pass to `lun run`
     required: false
