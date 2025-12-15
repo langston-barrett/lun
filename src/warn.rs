@@ -199,7 +199,7 @@ pub(crate) fn check_careful(
 
 pub(crate) fn check_mtime(
     lints: &Warns,
-    mtime_cli: bool,
+    no_mtime_cli: bool,
     mtime_config: bool,
 ) -> anyhow::Result<()> {
     let level = lints.level(Warn::Mtime);
@@ -207,19 +207,19 @@ pub(crate) fn check_mtime(
         return Ok(());
     }
 
-    let mtime = mtime_cli || mtime_config;
-    if !mtime {
+    let mtime_enabled = mtime_config && !no_mtime_cli;
+    if !mtime_enabled {
         return Ok(());
     }
 
     match level {
         level::Level::Allow => {}
         level::Level::Warn => {
-            warn!("mtime is set on CLI or config file");
+            warn!("mtime is enabled");
         }
         level::Level::Deny => {
-            error!("mtime is set on CLI or config file");
-            bail!("mtime is set and --deny={}", Warn::Mtime.as_str());
+            error!("mtime is enabled on CLI or config file");
+            bail!("mtime is enabled and --deny={}", Warn::Mtime.as_str());
         }
     }
 

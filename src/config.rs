@@ -16,6 +16,15 @@ fn default<T: Default + PartialEq>(t: &T) -> bool {
     *t == Default::default()
 }
 
+fn default_mtime() -> bool {
+    true
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+fn is_default_mtime(mtime: &bool) -> bool {
+    *mtime == default_mtime()
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct WarnCfg {
@@ -55,8 +64,8 @@ pub(crate) struct Config {
     #[serde(skip_serializing_if = "default")]
     pub(crate) ignore: Vec<String>,
 
-    #[serde(default)]
-    #[serde(skip_serializing_if = "default")]
+    #[serde(default = "default_mtime")]
+    #[serde(skip_serializing_if = "is_default_mtime")]
     pub(crate) mtime: bool,
 
     #[serde(default)]

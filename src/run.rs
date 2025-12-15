@@ -188,7 +188,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
     } else {
         config.refs.clone()
     };
-    let mtime = run.mtime || config.mtime;
+    let mtime = config.mtime && !run.no_mtime;
     Ok(Config {
         refs,
         cache: cli.cache.clone(),
@@ -358,7 +358,7 @@ fn lint(run_cli: &cli::Run, config: &config::Config, lints: &Warns) -> Result<()
     warn::check_unlisted_config(lints, config)?;
     warn::check_no_files(lints, config)?;
     warn::check_careful(lints, run_cli.careful, config.careful)?;
-    warn::check_mtime(lints, run_cli.mtime, config.mtime)?;
+    warn::check_mtime(lints, run_cli.no_mtime, config.mtime)?;
     warn::check_refs(lints, &run_cli.refs, &config.refs)?;
     Ok(())
 }

@@ -6,12 +6,14 @@ clears the cache. Cache entries older than 30 days are automatically deleted.
 
 ## Keys
 
-A cache entry consists of the hash of the:
+There are two kinds of cache entry. They both include the:
 
 - File path
-- File content
 - File metadata, including size, owner UID and GID, and permissions (mode)
 - Tool command line
 - Tool working directory, if specified
-- Content of the linter configuration file(s), if specified
+- Content of the tool configuration file(s), if specified
 - Output of the tool's `--version` flag (if `--careful` is used)
+
+`mtime` entries also include the file modification time.
+Content entries also include the hash of the file content.
