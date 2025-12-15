@@ -4,6 +4,7 @@
 
 ## next
 
+- Reduce mixing of output in logs
 - Overhaul handling of file modification times. Enable `mtime` by default.
 
 ## [0.3.0] - 2025-12-15

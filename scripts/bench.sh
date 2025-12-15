@@ -7,8 +7,7 @@ ver=0.14.8
 cat > lun.toml <<EOF
 [[linter]]
 cmd = "rustfmt --check --"
-files = "crates/**/*.rs"
-granularity = "individual"
+files = ["crates/**/*.rs"]
 EOF
 
 git checkout "${ver}"
