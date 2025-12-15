@@ -32,4 +32,4 @@ runs:
   - name: lun run
     shell: bash
     run: | # zizmor: ignore[template-injection]
-      lun run ${{ inputs.run-flags }}
+      lun ${{ inputs.flags }} run ${{ inputs.run-flags }}
