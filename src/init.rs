@@ -101,11 +101,11 @@ mod tests {
         expect![[r#"
             [[linter]]
             name = "cargo clippy"
-            cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
+            cmd = "cargo clippy --color={{color}} --all-targets -- --deny warnings"
             files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
-            fix = "cargo clippy --color=always --allow-dirty --fix"
+            fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
             [[linter]]
             name = "ruff check"
@@ -133,19 +133,19 @@ mod tests {
         expect![[r#"
             [[linter]]
             name = "cargo clippy"
-            cmd = "cargo clippy --color=always --all-targets -- --deny warnings"
+            cmd = "cargo clippy --color={{color}} --all-targets -- --deny warnings"
             files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
-            fix = "cargo clippy --color=always --allow-dirty --fix"
+            fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
             [[formatter]]
             name = "cargo fmt"
-            cmd = "cargo fmt --"
+            cmd = "cargo fmt -- --color={{color}} --"
             files = ["*.rs"]
             granularity = "batch"
             configs = ["Cargo.toml"]
-            check = "cargo fmt --check"
+            check = "cargo fmt --check -- --color={{color}} --"
         "#]]
         .assert_eq(&toml);
     }

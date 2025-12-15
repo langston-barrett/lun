@@ -23,7 +23,7 @@ granularity = "individual"
 ### Flags
 
 ```sh
---no-batch
+run --no-batch
 ```
 
 ### Output

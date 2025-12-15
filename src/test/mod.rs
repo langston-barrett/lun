@@ -20,6 +20,7 @@ struct TestScenario {
     files: Vec<TestFile>,
     expected_output: Vec<String>,
     run: Option<cli::Run>,
+    color: cli::log::Color,
 }
 
 #[derive(Clone, Debug)]
@@ -31,10 +32,15 @@ struct TestFile {
 
 impl TestFile {
     fn to_file(&self) -> file::File {
+        use xxhash_rust::xxh3::Xxh3;
+        let mut hasher = Xxh3::new();
+        hasher.update(self.path.as_os_str().as_encoded_bytes());
+        hasher.update(self.content.as_bytes());
+        hasher.update(&self.size.to_le_bytes());
         file::File {
             path: self.path.clone(),
             size: self.size,
-            stamp: file::Stamp(file::compute_hash(self.content.as_bytes())),
+            stamp: file::Stamp(file::Xxhash(hasher.digest())),
         }
     }
 }
@@ -74,7 +80,7 @@ fn process_output_section(scenario: &mut TestScenario, content: &str) {
 }
 
 fn process_flags_section(scenario: &mut TestScenario, content: &str) {
-    let mut args = vec!["run".to_string()];
+    let mut args = vec!["lun".to_string()];
     for flag_line in content.lines() {
         let trimmed = flag_line.trim();
         if trimmed.is_empty() {
@@ -84,10 +90,14 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
             args.push(arg.to_string());
         }
     }
-    let cli = cli::Run::try_parse_from(args.iter().map(|s| s.as_str()))
+
+    let cli = cli::Cli::try_parse_from(args.iter().map(|s| s.as_str()))
         .map_err(|e| e.to_string())
         .unwrap();
-    scenario.run = Some(cli);
+    if let cli::Command::Run(run) = cli.command {
+        scenario.run = Some(run);
+    }
+    scenario.color = cli.log.color;
 }
 
 fn process_files_section_line(scenario: &mut TestScenario, line: &str) {
@@ -139,6 +149,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
     let mut current_section: Option<String> = None;
     let mut current_content = String::new();
     let mut previous_files: Vec<TestFile> = Vec::new();
+    let mut in_code_block = false;
 
     for line in content.lines() {
         if line.starts_with("## Scenario ") {
@@ -174,15 +185,19 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                 files,
                 expected_output: Vec::new(),
                 run: None,
+                color: cli::log::Color::Auto,
             });
             current_section = None;
             current_content.clear();
+            in_code_block = false;
         } else if line == "### Config" {
             current_section = Some("config".to_string());
             current_content.clear();
+            in_code_block = false;
         } else if line == "### Files" {
             current_section = Some("files".to_string());
             current_content.clear();
+            in_code_block = false;
             // Clear files when Files section starts (new files will be added)
             if let Some(ref mut scenario) = current_scenario {
                 scenario.files.clear();
@@ -190,25 +205,35 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
         } else if line == "### Output" {
             current_section = Some("output".to_string());
             current_content.clear();
+            in_code_block = false;
         } else if line == "### Flags" {
             current_section = Some("flags".to_string());
             current_content.clear();
+            in_code_block = false;
         } else if line.starts_with("```") {
             if let Some(ref section) = current_section {
                 if line == "```toml" || line == "```sh" {
                     // Start of code block
                     current_content.clear();
+                    in_code_block = true;
                 } else if line == "```" {
-                    // End of code block
-                    if let Some(ref mut scenario) = current_scenario {
-                        process_section_content(
-                            scenario,
-                            section.as_str(),
-                            &current_content,
-                            path,
-                        )?;
+                    if in_code_block {
+                        // End of code block
+                        if let Some(ref mut scenario) = current_scenario {
+                            process_section_content(
+                                scenario,
+                                section.as_str(),
+                                &current_content,
+                                path,
+                            )?;
+                        }
+                        current_content.clear();
+                        in_code_block = false;
+                    } else {
+                        // Start of code block (plain ```)
+                        current_content.clear();
+                        in_code_block = true;
                     }
-                    current_content.clear();
                 }
             }
         } else if let Some(ref section) = current_section {
@@ -270,29 +295,20 @@ fn test(path: &'static str) {
             .cores
             .unwrap_or(const { NonZeroUsize::new(1).unwrap() });
         let run_mode = run::RunMode::from(run);
-        let tool = scenario
-            .config
-            .linter
-            .iter()
-            .cloned()
-            .map(|t| {
-                t.into_tool(
-                    run_mode,
-                    false,
-                    cli::log::Color::Auto,
-                    &scenario.config.ignore,
+        let tool =
+            scenario
+                .config
+                .linter
+                .iter()
+                .cloned()
+                .map(|t| t.into_tool(run_mode, false, scenario.color, &scenario.config.ignore))
+                .chain(
+                    scenario.config.formatter.iter().cloned().map(|t| {
+                        t.into_tool(run_mode, false, scenario.color, &scenario.config.ignore)
+                    }),
                 )
-            })
-            .chain(scenario.config.formatter.iter().cloned().map(|t| {
-                t.into_tool(
-                    run_mode,
-                    false,
-                    cli::log::Color::Auto,
-                    &scenario.config.ignore,
-                )
-            }))
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
+                .collect::<Result<Vec<_>>>()
+                .unwrap();
         let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch).unwrap();
         let out = jobs_to_string(&batches);
         assert_eq!(
@@ -360,6 +376,7 @@ fn parse_test_file_debug() {
                     "lint -- file.py",
                 ],
                 run: None,
+                color: Auto,
             },
             TestScenario {
                 config: Config {
@@ -402,6 +419,7 @@ fn parse_test_file_debug() {
                     "lint --some-flag -- file.py",
                 ],
                 run: None,
+                color: Auto,
             },
         ]"#]]
     .assert_eq(&debug_output);
@@ -415,6 +433,11 @@ fn batch2() {
 #[test]
 fn batch3() {
     test("tests/batch3.md");
+}
+
+#[test]
+fn color() {
+    test("tests/color.md");
 }
 
 #[test]
