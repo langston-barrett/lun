@@ -7,13 +7,13 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         config::Linter {
             tool: config::Tool {
                 name: Some(String::from("cargo clippy")),
-                cmd: "cargo clippy --color=always --all-targets -- --deny warnings".to_string(),
+                cmd: "cargo clippy --color={{color}} --all-targets -- --deny warnings".to_string(),
                 files: vec!["*.rs".to_string()],
                 ignore: Vec::new(),
                 granularity: Granularity::Batch,
                 configs: vec![PathBuf::from("Cargo.toml")],
             },
-            fix: Some("cargo clippy --color=always --allow-dirty --fix".to_string()),
+            fix: Some("cargo clippy --color={{color}} --allow-dirty --fix".to_string()),
         },
         config::Linter {
             tool: config::Tool {
@@ -70,7 +70,7 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         config::Linter {
             tool: config::Tool {
                 name: Some("shellcheck".to_string()),
-                cmd: "shellcheck --color=always --".to_string(),
+                cmd: "shellcheck --color={{color}} --".to_string(),
                 files: vec!["*.sh".to_string()],
                 ignore: Vec::new(),
                 granularity: Granularity::Individual,
@@ -134,7 +134,7 @@ pub(crate) fn known_formatters() -> Vec<config::Formatter> {
         config::Formatter {
             tool: config::Tool {
                 name: Some(String::from("cargo fmt")),
-                cmd: "cargo fmt --".to_string(),
+                cmd: "cargo fmt -- --color={{color}} --".to_string(),
                 files: vec!["*.rs".to_string()],
                 ignore: Vec::new(),
                 // This is usually faster as a batch, Cargo is magic
@@ -145,7 +145,7 @@ pub(crate) fn known_formatters() -> Vec<config::Formatter> {
                     PathBuf::from(".rustfmt.toml"),
                 ],
             },
-            check: Some("cargo fmt --check".to_string()),
+            check: Some("cargo fmt --check -- --color={{color}} --".to_string()),
         },
         config::Formatter {
             tool: config::Tool {
