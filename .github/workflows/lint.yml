@@ -22,6 +22,7 @@ jobs:
       with:
         persist-credentials: false
     - uses: langston-barrett/gha/.github/actions/install-linters@e9a0541869681c30de7e16c4f7b70f03c23dd472
-    - uses: langston-barrett/lun/.github/actions/lun@8353692642bfc2ede22e128f0aa3a31a7359b8e6
+    - uses: langston-barrett/lun/.github/actions/lun@6a253fabc4f4c28c653f9a84955fbce1ab87bd38
       with:
+        # clippy is run in ci.yml
         run-flags: "--check --skip-tool='cargo clippy'"
