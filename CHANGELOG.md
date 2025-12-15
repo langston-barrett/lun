@@ -2,6 +2,12 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+- Add `--no-cache` flag to disable cache
+- Add `--no-refs` flag to ignore any refs from CLI or config file
+- Add `--fresh` flag equivalent to `--no-cache --no-refs`
+
 ## [0.4.0] - 2025-12-15
 
 [0.4.0]: https://github.com/langston-barrett/lun/releases/tag/v0.4.0

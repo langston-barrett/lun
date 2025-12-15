@@ -21,8 +21,8 @@ fn is_match(tool: &Arc<tool::Tool>, f: &file::File) -> bool {
 }
 
 // The workings of this function are described in `doc/cache.md`.
-fn need_file(
-    cache: &mut impl cache::Cache,
+fn need_file<C: cache::Cache + ?Sized>(
+    cache: &mut C,
     git_refs: &[String],
     mtime_enabled: bool,
     tool: &Arc<tool::Tool>,
@@ -63,10 +63,10 @@ fn need_file(
     }
 }
 
-fn tool_commands(
+fn tool_commands<C: cache::Cache + ?Sized>(
     tool: &tool::Tool,
     files: &mut [file::File],
-    cache: &mut impl cache::Cache,
+    cache: &mut C,
     git_refs: &[String],
     mtime_enabled: bool,
 ) -> Result<Option<cmd::Command>> {
@@ -95,8 +95,8 @@ fn tool_commands(
     }
 }
 
-pub(crate) fn plan(
-    cache: &mut impl cache::Cache,
+pub(crate) fn plan<C: cache::Cache + ?Sized>(
+    cache: &mut C,
     tools: &[tool::Tool],
     files: &[file::File],
     git_refs: &[String],

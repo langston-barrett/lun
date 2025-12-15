@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     hash::Hash as _,
+    mem::size_of_val,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -75,6 +76,29 @@ pub(crate) trait CacheWriter {
 
 pub(crate) trait Cache: CacheWriter {
     fn needed(&self, key: &Key) -> bool;
+}
+
+impl CacheWriter for &mut dyn Cache {
+    #[inline]
+    fn done(&mut self, key: &Key) {
+        (*self).done(key);
+    }
+
+    #[inline]
+    fn done_hash(&mut self, hash: KeyHash) {
+        (*self).done_hash(hash);
+    }
+
+    #[inline]
+    fn flush(&mut self) -> Result<()> {
+        (*self).flush()
+    }
+}
+
+impl Cache for &mut dyn Cache {
+    fn needed(&self, key: &Key) -> bool {
+        (**self).needed(key)
+    }
 }
 
 pub(crate) struct HashCache {
@@ -221,6 +245,28 @@ impl Cache for HashCache {
     #[inline]
     fn needed(&self, key: &Key) -> bool {
         !self.hashes.contains_key(&KeyHash::from(key))
+    }
+}
+
+pub(crate) struct NopCache;
+
+impl CacheWriter for NopCache {
+    #[inline]
+    fn done(&mut self, _key: &Key) {}
+
+    #[inline]
+    fn done_hash(&mut self, _hash: KeyHash) {}
+
+    #[inline]
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Cache for NopCache {
+    #[inline]
+    fn needed(&self, _key: &Key) -> bool {
+        true
     }
 }
 
