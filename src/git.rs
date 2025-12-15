@@ -26,19 +26,18 @@ pub(crate) fn file_changed_from_refs(path: &Path, refs: &[String]) -> Result<boo
         match file_content_in_branch(path, r#ref) {
             Ok(Some(branch_content)) => {
                 if branch_content == current_content {
-                    debug!("{} matches ref {}, skipping", path.display(), r#ref);
+                    debug!("{}: matches ref {}, skipping", path.display(), r#ref);
                     return Ok(false);
                 }
             }
             Ok(None) => {
-                debug!("{} doesn't exist in ref {}", path.display(), r#ref);
+                debug!("{}: doesn't exist in ref {}", path.display(), r#ref);
             }
             Err(e) => {
                 debug!(
-                    "Failed to check file {} in ref {}: {}",
+                    "{}: failed to check file in ref {} ({e})",
                     path.display(),
                     r#ref,
-                    e
                 );
             }
         }
