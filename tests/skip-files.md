@@ -25,7 +25,7 @@ granularity = "individual"
 ### Flags
 
 ```sh
---skip-files=file*.py
+run --skip-files=file*.py
 ```
 
 ### Output

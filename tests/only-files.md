@@ -23,7 +23,7 @@ granularity = "individual"
 ### Flags
 
 ```sh
---only-files=file*.py
+run --only-files=file*.py
 ```
 
 ### Output
