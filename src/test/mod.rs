@@ -215,6 +215,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                     mtime: true,
                     ninja: None,
                     ignore: Vec::new(),
+                    cache_size: None,
                 },
                 files,
                 expected_output: Vec::new(),
@@ -322,7 +323,7 @@ fn test(path: &'static str) {
     let test_file = PathBuf::from(path);
     let scenarios = parse_test_file(&test_file).unwrap();
     assert!(!scenarios.is_empty());
-    let mut cache = cache::HashCache::new(PathBuf::from(".lun"));
+    let mut cache = cache::HashCache::new(PathBuf::from(".lun"), 1000);
     for (i, scenario) in scenarios.iter().enumerate() {
         let default = cli::Run::try_parse_from(["run"])
             .map_err(|e| e.to_string())

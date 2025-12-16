@@ -7,6 +7,7 @@
 - Add `--no-cache` flag to disable cache
 - Add `--no-refs` flag to ignore any refs from CLI or config file
 - Add `--fresh` flag equivalent to `--no-cache --no-refs`
+- Add cache size limit (config: `cache_size`, cli: `--cache-size`)
 
 ## [0.4.0] - 2025-12-15
 

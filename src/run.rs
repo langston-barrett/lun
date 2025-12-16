@@ -172,6 +172,7 @@ struct Config {
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
+    cache_size: Option<usize>,
 }
 
 fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<Config> {
@@ -208,6 +209,7 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),
+        cache_size: run.cache_size.or(config.cache_size),
     })
 }
 
@@ -239,7 +241,7 @@ fn run(config: &Config) -> Result<RunResult> {
     let mut cache: &mut dyn cache::Cache = if config.no_cache {
         &mut cache::NopCache
     } else {
-        &mut cache::HashCache::from_file(&cache_file)?
+        &mut cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
     let jobs = plan::plan(
         cache,

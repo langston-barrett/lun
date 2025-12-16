@@ -40,6 +40,9 @@ pub(crate) enum Command {
 /// Run linters and formatters
 #[derive(Debug, clap::Parser)]
 pub(crate) struct Run {
+    /// Maximum cache size in bytes (overrides config file value)
+    #[arg(long, value_name = "BYTES")]
+    pub(crate) cache_size: Option<usize>,
     /// Include tool version in cache keys
     #[arg(long)]
     pub(crate) careful: bool,

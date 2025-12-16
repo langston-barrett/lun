@@ -87,6 +87,7 @@ impl Cache for &mut dyn Cache {
 pub(crate) struct HashCache {
     hashes: HashMap<KeyHash, u16>,
     file: PathBuf,
+    max_entries: usize,
 }
 
 // Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 6 bytes total
@@ -94,8 +95,13 @@ const HEADER_SIZE: usize = 6;
 const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (u16 counter) + 8 bytes (u64 hash)
 // For reference rust-lang/rust has 32000 (~ 2^15) .rs files
 // 2^17 * 10 bytes is ~ 1.25 MiB
-const MAX_CACHE_SIZE_ENTRIES: usize = (2 << 17) * RECORD_SIZE;
-// const MAX_CACHE_SIZE_BYTES: usize = MAX_CACHE_SIZE_ENTRIES * RECORD_SIZE;
+const DEFAULT_MAX_CACHE_SIZE_BYTES: usize = (2 << 17) * RECORD_SIZE;
+
+/// Calculate the maximum number of cache entries from a byte size.
+/// Rounds down to the next lowest multiple of RECORD_SIZE.
+fn max_entries_from_bytes(bytes: usize) -> usize {
+    bytes / RECORD_SIZE
+}
 
 #[allow(clippy::unwrap_used)]
 fn current_version() -> (u16, u16, u16) {
@@ -129,15 +135,20 @@ fn deserialize_version_header(header: &[u8]) -> Option<(u16, u16, u16)> {
 
 impl HashCache {
     #[inline]
-    pub(crate) fn new(file: PathBuf) -> Self {
+    pub(crate) fn new(file: PathBuf, max_size_entries: usize) -> Self {
         Self {
             hashes: HashMap::new(),
             file,
+            max_entries: max_size_entries,
         }
     }
 
-    pub(crate) fn from_file(file: &Path) -> Result<Self> {
-        let mut cache = Self::new(file.to_path_buf());
+    pub(crate) fn from_file(file: &Path, max_size_bytes: Option<usize>) -> Result<Self> {
+        let max_size_entries = max_size_bytes.map_or_else(
+            || max_entries_from_bytes(DEFAULT_MAX_CACHE_SIZE_BYTES),
+            max_entries_from_bytes,
+        );
+        let mut cache = Self::new(file.to_path_buf(), max_size_entries);
         if !file.exists() {
             return Ok(cache);
         }
@@ -237,7 +248,7 @@ impl HashCache {
         // Sort by counter, then by hash
         entries.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
         let initial_count = entries.len();
-        let to_keep = entries.len().min(MAX_CACHE_SIZE_ENTRIES);
+        let to_keep = entries.len().min(self.max_entries);
         let removed_count = initial_count.saturating_sub(to_keep);
         debug!("Dropping {} old cache entries", removed_count);
 
@@ -323,7 +334,7 @@ mod tests {
     #[test]
     fn new_cache() {
         let temp_file = NamedTempFile::new().unwrap();
-        let cache = HashCache::new(temp_file.path().to_path_buf());
+        let cache = HashCache::new(temp_file.path().to_path_buf(), 1000);
         assert!(cache.hashes.is_empty());
         assert_eq!(cache.file, temp_file.path());
     }
@@ -334,7 +345,7 @@ mod tests {
         let file_path = temp_file.path().to_path_buf();
         drop(temp_file); // Delete the file
 
-        let cache = HashCache::from_file(&file_path).unwrap();
+        let cache = HashCache::from_file(&file_path, None).unwrap();
         assert!(cache.hashes.is_empty());
     }
 
@@ -343,7 +354,7 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         fs::write(temp_file.path(), b"").unwrap();
 
-        let cache = HashCache::from_file(temp_file.path()).unwrap();
+        let cache = HashCache::from_file(temp_file.path(), None).unwrap();
         assert!(cache.hashes.is_empty());
     }
 
@@ -352,12 +363,12 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let key = create_test_key("test.rs", "cargo fmt");
         {
-            let mut cache = HashCache::new(temp_file.path().to_path_buf());
+            let mut cache = HashCache::new(temp_file.path().to_path_buf(), 1000);
             cache.done(&key);
             cache.flush().unwrap();
         }
         {
-            let cache = HashCache::from_file(temp_file.path()).unwrap();
+            let cache = HashCache::from_file(temp_file.path(), None).unwrap();
             assert!(!cache.needed(&key));
         }
     }
