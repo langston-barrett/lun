@@ -2,17 +2,16 @@ use std::{
     collections::HashMap,
     fs,
     hash::Hash as _,
-    mem::size_of_val,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use xxhash_rust::xxh3::Xxh3;
 
+use crate::file;
 use crate::tool;
-use crate::{LUN_VERSION, file};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct Key {
@@ -47,7 +46,6 @@ pub(crate) struct KeyHash(pub(crate) file::Xxhash);
 impl From<&Key> for KeyHash {
     fn from(key: &Key) -> Self {
         let mut hasher = Xxh3::new();
-        hasher.update(LUN_VERSION.as_bytes());
         key.hash(&mut hasher);
         KeyHash(file::Xxhash(hasher.digest()))
     }
@@ -106,9 +104,39 @@ pub(crate) struct HashCache {
     file: PathBuf,
 }
 
-const CACHE_VERSION: u32 = 1;
-const HEADER_SIZE: usize = size_of_val(&CACHE_VERSION);
+// Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 8 bytes total
+const HEADER_SIZE: usize = 6;
 const RECORD_SIZE: usize = 10; // 2 bytes (u16) + 8 bytes (u64)
+
+#[allow(clippy::unwrap_used)]
+fn current_version() -> (u16, u16, u16) {
+    (
+        const { u16::from_str_radix(env!("CARGO_PKG_VERSION_MAJOR"), 10) }.unwrap(),
+        const { u16::from_str_radix(env!("CARGO_PKG_VERSION_MINOR"), 10) }.unwrap(),
+        const { u16::from_str_radix(env!("CARGO_PKG_VERSION_PATCH"), 10) }.unwrap(),
+    )
+}
+
+fn serialize_version_header(major: u16, minor: u16, patch: u16) -> [u8; HEADER_SIZE] {
+    let mut header = [0u8; HEADER_SIZE];
+    header[0..2].copy_from_slice(&major.to_le_bytes());
+    header[2..4].copy_from_slice(&minor.to_le_bytes());
+    header[4..6].copy_from_slice(&patch.to_le_bytes());
+    header
+}
+
+fn deserialize_version_header(header: &[u8]) -> Option<(u16, u16, u16)> {
+    if header.len() < HEADER_SIZE {
+        return None;
+    }
+    let major_bytes: [u8; 2] = header[0..2].try_into().ok()?;
+    let minor_bytes: [u8; 2] = header[2..4].try_into().ok()?;
+    let patch_bytes: [u8; 2] = header[4..6].try_into().ok()?;
+    let major = u16::from_le_bytes(major_bytes);
+    let minor = u16::from_le_bytes(minor_bytes);
+    let patch = u16::from_le_bytes(patch_bytes);
+    Some((major, minor, patch))
+}
 
 impl HashCache {
     #[inline]
@@ -146,14 +174,26 @@ impl HashCache {
             return false;
         }
 
-        #[allow(clippy::unwrap_used)]
-        let version = u32::from_le_bytes(contents[0..HEADER_SIZE].try_into().unwrap());
-        if version != CACHE_VERSION {
-            warn!(
-                "Cache version mismatch at {} (expected: {}, found: {})",
+        let Some((cached_major, cached_minor, cached_patch)) =
+            deserialize_version_header(&contents[0..HEADER_SIZE])
+        else {
+            warn!("Corrupted cache header at {}", file.display(),);
+            return false;
+        };
+
+        let (current_major, current_minor, current_patch) = current_version();
+        if (cached_major, cached_minor, cached_patch)
+            != (current_major, current_minor, current_patch)
+        {
+            info!(
+                "Cache version mismatch at {} (lun: {}.{}.{}, cache: {}.{}.{})",
                 file.display(),
-                CACHE_VERSION,
-                version,
+                current_major,
+                current_minor,
+                current_patch,
+                cached_major,
+                cached_minor,
+                cached_patch,
             );
             return false;
         }
@@ -212,7 +252,8 @@ impl HashCache {
         entries.sort_by_key(|(_, hash)| *hash);
         let mut content = Vec::with_capacity(HEADER_SIZE + entries.len() * record_size);
 
-        content.extend_from_slice(&CACHE_VERSION.to_le_bytes());
+        let (major, minor, patch) = current_version();
+        content.extend_from_slice(&serialize_version_header(major, minor, patch));
         for (days, hash_value) in entries {
             content.extend_from_slice(&days.to_le_bytes());
             content.extend_from_slice(&hash_value.to_le_bytes());

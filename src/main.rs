@@ -29,8 +29,6 @@ use clap::Parser as _;
 use std::{fs, path::Path, process};
 use tracing::{debug, trace};
 
-pub(crate) const LUN_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
