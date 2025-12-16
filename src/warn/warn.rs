@@ -13,6 +13,8 @@ pub(crate) enum Warn {
     Mtime,
     Refs,
     NoFiles,
+    CacheFull,
+    CacheUsage,
 }
 
 impl fmt::Display for Warn {
@@ -32,6 +34,8 @@ impl Warn {
             Warn::Mtime => level::Level::Allow,
             Warn::Refs => level::Level::Allow,
             Warn::NoFiles => level::Level::Deny,
+            Warn::CacheFull => level::Level::Allow,
+            Warn::CacheUsage => level::Level::Warn,
         }
     }
 
@@ -45,6 +49,8 @@ impl Warn {
             Warn::Mtime => "mtime",
             Warn::Refs => "refs",
             Warn::NoFiles => "no-files",
+            Warn::CacheFull => "cache-full",
+            Warn::CacheUsage => "cache-usage",
         }
     }
 
@@ -58,6 +64,8 @@ impl Warn {
             Warn::Mtime => include_str!("../../doc/warns/mtime.md"),
             Warn::Refs => include_str!("../../doc/warns/refs.md"),
             Warn::NoFiles => include_str!("../../doc/warns/no-files.md"),
+            Warn::CacheFull => include_str!("../../doc/warns/cache-full.md"),
+            Warn::CacheUsage => include_str!("../../doc/warns/cache-usage.md"),
         }
     }
 
@@ -71,6 +79,8 @@ impl Warn {
             Warn::Mtime => "`mtime` is set on CLI or config file",
             Warn::Refs => "`refs` is used on CLI or config file",
             Warn::NoFiles => "Tool has empty `files` array",
+            Warn::CacheFull => "Cache is full and entries are being dropped",
+            Warn::CacheUsage => "Single execution uses more than a quarter of the cache size",
         }
     }
 
@@ -84,6 +94,8 @@ impl Warn {
             Warn::Mtime,
             Warn::Refs,
             Warn::NoFiles,
+            Warn::CacheFull,
+            Warn::CacheUsage,
         ]
     }
 }
@@ -100,6 +112,8 @@ impl FromStr for Warn {
             "mtime" => Ok(Warn::Mtime),
             "refs" => Ok(Warn::Refs),
             "no-files" => Ok(Warn::NoFiles),
+            "cache-full" => Ok(Warn::CacheFull),
+            "cache-usage" => Ok(Warn::CacheUsage),
             _ => Err(()),
         }
     }

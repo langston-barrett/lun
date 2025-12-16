@@ -299,3 +299,67 @@ pub(crate) fn check_no_files(lints: &Warns, config: &config::Config) -> anyhow::
 
     Ok(())
 }
+
+pub(crate) fn check_cache_full(lints: &Warns, cache_full: bool) -> anyhow::Result<()> {
+    let level = lints.level(Warn::CacheFull);
+    if matches!(level, level::Level::Allow) {
+        return Ok(());
+    }
+
+    if !cache_full {
+        return Ok(());
+    }
+
+    match level {
+        level::Level::Allow => {}
+        level::Level::Warn => {
+            warn!("cache is full and entries are being dropped");
+        }
+        level::Level::Deny => {
+            error!("cache is full and entries are being dropped");
+            bail!("cache is full and --deny={}", Warn::CacheFull.as_str());
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) fn check_cache_usage(
+    lints: &Warns,
+    entries_added: usize,
+    max_entries: usize,
+) -> anyhow::Result<()> {
+    let level = lints.level(Warn::CacheUsage);
+    if matches!(level, level::Level::Allow) {
+        return Ok(());
+    }
+
+    let quarter_cache = max_entries / 4;
+    if entries_added <= quarter_cache {
+        return Ok(());
+    }
+
+    match level {
+        level::Level::Allow => {}
+        level::Level::Warn => {
+            warn!(
+                "single execution added {} cache entries ({}% of cache size)",
+                entries_added,
+                (entries_added * 100) / max_entries.max(1)
+            );
+        }
+        level::Level::Deny => {
+            error!(
+                "single execution added {} cache entries ({}% of cache size)",
+                entries_added,
+                (entries_added * 100) / max_entries.max(1)
+            );
+            bail!(
+                "single execution uses more than a quarter of cache size and --deny={}",
+                Warn::CacheUsage.as_str()
+            );
+        }
+    }
+
+    Ok(())
+}

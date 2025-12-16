@@ -234,17 +234,17 @@ impl From<&RunResult> for bool {
     }
 }
 
-fn run(config: &Config) -> Result<RunResult> {
+fn run(config: &Config, lints: &Warns) -> Result<RunResult> {
     trace!(?config);
     debug_assert!(config.files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
-    let mut cache: &mut dyn cache::Cache = if config.no_cache {
-        &mut cache::NopCache
+    let mut cache = if config.no_cache {
+        cache::HashCache::new(PathBuf::from("/dev/null"), 0)
     } else {
-        &mut cache::HashCache::from_file(&cache_file, config.cache_size)?
+        cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
     let jobs = plan::plan(
-        cache,
+        &mut cache,
         &config.tools,
         &config.files,
         &config.refs,
@@ -252,7 +252,9 @@ fn run(config: &Config) -> Result<RunResult> {
         config.no_batch,
         config.mtime,
     )?;
-    cache.flush()?;
+    if !config.no_cache {
+        cache.flush()?;
+    };
     let no_jobs = jobs.is_empty();
     let n_jobs = jobs.len();
     let files_linted = jobs
@@ -261,8 +263,10 @@ fn run(config: &Config) -> Result<RunResult> {
         .collect::<HashSet<_>>()
         .len();
     let result = do_exec(config, &mut cache, jobs);
-    if !no_jobs {
-        cache.flush()?;
+    if !no_jobs && !config.no_cache {
+        let cache_full = cache.flush()?;
+        warn::check_cache_usage(lints, cache.entries_added, cache.max_entries)?;
+        warn::check_cache_full(lints, cache_full)?;
     }
     let result = match result {
         _ if config.dry_run => Ok(RunResult::AllGood { cmds: 0, files: 0 }),
@@ -280,7 +284,7 @@ fn run(config: &Config) -> Result<RunResult> {
 
 fn do_exec(
     config: &Config,
-    cache: &mut impl CacheWriter,
+    cache: &mut (impl CacheWriter + ?Sized),
     jobs: Vec<crate::cmd::Command>,
 ) -> std::result::Result<bool, anyhow::Error> {
     if config.ninja {
@@ -338,11 +342,11 @@ pub(crate) fn go(
     lint(run_cli, config, lints)?;
     fs::create_dir_all(&cli.cache)?; // just to create the dir
     if run_cli.watch {
-        watch(cli, run_cli, config)?;
+        watch(cli, run_cli, config, lints)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
         let config = mk_config(cli, run_cli, config)?;
-        let result = run(&config);
+        let result = run(&config, lints);
         #[cfg(debug_assertions)]
         {
             let debug_cache = cli.cache.join("debug");
@@ -350,7 +354,7 @@ pub(crate) fn go(
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
             debug_config.cache = debug_cache;
-            let debug_result = run(&debug_config);
+            let debug_result = run(&debug_config, lints);
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
                     (Ok(r1), Ok(r2)) => bool::from(r1) == bool::from(r2),
@@ -380,9 +384,14 @@ fn clear_term() {
 // TODO: A "true" watch mode that updates an internal model of the filesystem
 // using the events from `notify`. See e.g.,
 // https://github.com/astral-sh/ruff/blob/main/crates/ty_project/src/watch/watcher.rs
-fn watch(cli: &cli::Cli, run_cli: &cli::Run, config: &config::Config) -> Result<bool> {
+fn watch(
+    cli: &cli::Cli,
+    run_cli: &cli::Run,
+    config: &config::Config,
+    lints: &Warns,
+) -> Result<bool> {
     let mut config = mk_config(cli, run_cli, config)?;
-    run(&config)?;
+    run(&config, lints)?;
 
     let initial_config_hash = fs::read(&cli.config)
         .ok()
@@ -418,7 +427,7 @@ fn watch(cli: &cli::Cli, run_cli: &cli::Run, config: &config::Config) -> Result<
             warn_if_config_changed(&cli.config, initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
             config.files = collect_files(cli, run_cli, config.show_progress)?;
-            run(&config)?;
+            run(&config, lints)?;
         }
         last_run = time::Instant::now();
     }

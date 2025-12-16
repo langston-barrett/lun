@@ -30,7 +30,7 @@ pub(crate) enum ProgressFormat {
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
-    cache_writer: &mut impl CacheWriter,
+    cache_writer: &mut (impl CacheWriter + ?Sized),
     batches: Vec<cmd::Command>,
     cores: NonZeroUsize,
     no_capture: bool,

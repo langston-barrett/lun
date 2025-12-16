@@ -42,3 +42,11 @@ for `WARN`.
 
 {{#include warns/unlisted-config.md:2:}}
 
+## `cache-full`
+
+{{#include warns/cache-full.md:2:}}
+
+## `cache-usage`
+
+{{#include warns/cache-usage.md:2:}}
+
