@@ -8,6 +8,7 @@
 - Add `--no-refs` flag to ignore any refs from CLI or config file
 - Add `--fresh` flag equivalent to `--no-cache --no-refs`
 - Add cache size limit (config: `cache_size`, cli: `--cache-size`)
+- Add cache management commands (`cache {gc,rm,stats}`)
 
 ## [0.4.0] - 2025-12-15
 

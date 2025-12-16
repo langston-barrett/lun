@@ -46,6 +46,11 @@ pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> 
                 cache::gc(&cache_file, *size)?;
                 Ok(true)
             }
+            cli::CacheCommand::Stats => {
+                let cache_file = cli.cache.join("cache");
+                cache::stats(&cache_file)?;
+                Ok(true)
+            }
         },
         cli::Command::Run(run) => {
             let config = config.ok_or_else(|| anyhow::anyhow!("Config file not found"))?;
