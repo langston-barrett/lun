@@ -12,7 +12,7 @@ use crate::{cache, cache::CacheWriter, cmd};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
-    cache: &mut impl CacheWriter,
+    cache: &mut (impl CacheWriter + ?Sized),
     cache_dir: &Path,
     batches: Vec<cmd::Command>,
     cores: NonZeroUsize,

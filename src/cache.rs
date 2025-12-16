@@ -54,40 +54,18 @@ impl From<&Key> for KeyHash {
 pub(crate) trait CacheWriter {
     fn done(&mut self, key: &Key);
     fn done_hash(&mut self, hash: KeyHash);
-    fn flush(&mut self) -> Result<()>;
+    fn flush(&mut self) -> Result<bool>;
 }
 
 pub(crate) trait Cache: CacheWriter {
     fn needed(&self, key: &Key) -> bool;
 }
 
-impl CacheWriter for &mut dyn Cache {
-    #[inline]
-    fn done(&mut self, key: &Key) {
-        (*self).done(key);
-    }
-
-    #[inline]
-    fn done_hash(&mut self, hash: KeyHash) {
-        (*self).done_hash(hash);
-    }
-
-    #[inline]
-    fn flush(&mut self) -> Result<()> {
-        (*self).flush()
-    }
-}
-
-impl Cache for &mut dyn Cache {
-    fn needed(&self, key: &Key) -> bool {
-        (**self).needed(key)
-    }
-}
-
 pub(crate) struct HashCache {
     hashes: HashMap<KeyHash, u16>,
     file: PathBuf,
-    max_entries: usize,
+    pub(crate) max_entries: usize,
+    pub(crate) entries_added: usize, // used in warnings
 }
 
 // Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 6 bytes total
@@ -95,11 +73,11 @@ const HEADER_SIZE: usize = 6;
 const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (u16 counter) + 8 bytes (u64 hash)
 // For reference rust-lang/rust has 32000 (~ 2^15) .rs files
 // 2^17 * 10 bytes is ~ 1.25 MiB
-const DEFAULT_MAX_CACHE_SIZE_BYTES: usize = (2 << 17) * RECORD_SIZE;
+pub(crate) const DEFAULT_MAX_CACHE_SIZE_BYTES: usize = (2 << 17) * RECORD_SIZE;
 
 /// Calculate the maximum number of cache entries from a byte size.
 /// Rounds down to the next lowest multiple of RECORD_SIZE.
-fn max_entries_from_bytes(bytes: usize) -> usize {
+pub(crate) fn max_entries_from_bytes(bytes: usize) -> usize {
     bytes / RECORD_SIZE
 }
 
@@ -140,6 +118,7 @@ impl HashCache {
             hashes: HashMap::new(),
             file,
             max_entries: max_size_entries,
+            entries_added: 0,
         }
     }
 
@@ -150,6 +129,7 @@ impl HashCache {
         );
         let mut cache = Self::new(file.to_path_buf(), max_size_entries);
         if !file.exists() {
+            debug!("No cache at {}", file.display());
             return Ok(cache);
         }
         cache.load(file)?;
@@ -232,7 +212,7 @@ impl HashCache {
         }
     }
 
-    fn serialize(&mut self) -> Vec<u8> {
+    fn serialize(&mut self) -> (Vec<u8>, bool) {
         debug!(
             "Flushing cache of size {} to {}",
             self.hashes.len() * RECORD_SIZE,
@@ -250,6 +230,7 @@ impl HashCache {
         let initial_count = entries.len();
         let to_keep = entries.len().min(self.max_entries);
         let removed_count = initial_count.saturating_sub(to_keep);
+        let cache_full = removed_count > 0;
         debug!("Dropping {} old cache entries", removed_count);
 
         let mut content = Vec::with_capacity(HEADER_SIZE + to_keep * RECORD_SIZE);
@@ -264,14 +245,17 @@ impl HashCache {
             content.extend_from_slice(&counter.to_le_bytes());
             content.extend_from_slice(&hash_value.to_le_bytes());
         }
-        content
+        (content, cache_full)
     }
 }
 
 impl CacheWriter for HashCache {
     #[inline]
     fn done_hash(&mut self, hash: KeyHash) {
-        self.hashes.insert(hash, 0);
+        let was_new = self.hashes.insert(hash, 0).is_none();
+        if was_new {
+            self.entries_added += 1;
+        }
     }
 
     #[inline]
@@ -279,11 +263,11 @@ impl CacheWriter for HashCache {
         self.done_hash(KeyHash::from(key));
     }
 
-    fn flush(&mut self) -> Result<()> {
-        let content = self.serialize();
+    fn flush(&mut self) -> Result<bool> {
+        let (content, cache_full) = self.serialize();
         fs::write(&self.file, content)
             .with_context(|| format!("Failed to write cache file: {}", self.file.display()))?;
-        Ok(())
+        Ok(cache_full)
     }
 }
 
@@ -291,28 +275,6 @@ impl Cache for HashCache {
     #[inline]
     fn needed(&self, key: &Key) -> bool {
         !self.hashes.contains_key(&KeyHash::from(key))
-    }
-}
-
-pub(crate) struct NopCache;
-
-impl CacheWriter for NopCache {
-    #[inline]
-    fn done(&mut self, _key: &Key) {}
-
-    #[inline]
-    fn done_hash(&mut self, _hash: KeyHash) {}
-
-    #[inline]
-    fn flush(&mut self) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl Cache for NopCache {
-    #[inline]
-    fn needed(&self, _key: &Key) -> bool {
-        true
     }
 }
 
