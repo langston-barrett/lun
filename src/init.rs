@@ -60,6 +60,7 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
         mtime: !init.no_mtime,
         ninja: None,
         ignore: Vec::new(),
+        cache_size: None,
         warns: config::WarnCfg {
             allow: init.allow.clone(),
             warn: init.warn.clone(),

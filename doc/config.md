@@ -7,6 +7,7 @@ The configuration file (`lun.toml` by default) is written in [TOML].
 ## Top-level fields
 
 - `careful` (boolean, default: `false`): Include tool version in cache keys for more conservative caching.
+- `cache_size` (integer, optional): Maximum cache size in bytes. Defaults to 1.25 MiB.
 - `cores` (integer, optional): Number of parallel jobs to run. If not specified, uses the number of CPU cores.
 - `mtime` (boolean, default: `true`): Use file modification times (see [Caching](cache.md)).
 - `ninja` (boolean, default: `false`): Enable or disable Ninja build file generation.

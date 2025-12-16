@@ -54,6 +54,10 @@ pub(crate) struct Config {
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
+    pub(crate) cache_size: Option<usize>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub(crate) careful: bool,
 
     #[serde(default)]
