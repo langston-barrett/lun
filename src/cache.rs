@@ -278,6 +278,31 @@ impl Cache for HashCache {
     }
 }
 
+pub(crate) fn rm(path: &Path) -> Result<(), anyhow::Error> {
+    if path.exists() {
+        fs::remove_dir_all(path)
+            .with_context(|| format!("Failed to remove cache: {}", path.display()))?;
+        debug!("Cache removed from {}", path.display());
+    }
+    Ok(())
+}
+
+pub(crate) fn gc(cache_file: &Path, max_size_bytes: Option<usize>) -> Result<(), anyhow::Error> {
+    if !cache_file.exists() {
+        info!("No cache file at {}", cache_file.display());
+        return Ok(());
+    }
+    let max_size_bytes = max_size_bytes.unwrap_or(DEFAULT_MAX_CACHE_SIZE_BYTES);
+    let mut cache = HashCache::from_file(cache_file, Some(max_size_bytes))?;
+    let cache_full = cache.flush()?;
+    if cache_full {
+        info!("Cache reduced to {} bytes", max_size_bytes);
+    } else {
+        info!("Cache already within size limit");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

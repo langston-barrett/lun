@@ -24,31 +24,29 @@ mod warn;
 #[cfg(test)]
 mod test;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::Parser as _;
-use std::{fs, path::Path, process};
-use tracing::{debug, trace};
+use std::process;
+use tracing::trace;
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-fn clean(path: &Path) -> Result<(), anyhow::Error> {
-    if path.exists() {
-        fs::remove_dir_all(path)
-            .with_context(|| format!("Failed to remove cache: {}", path.display()))?;
-        debug!("Cache removed from {}", path.display());
-    }
-    Ok(())
-}
-
 pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
     match &cli.command {
-        cli::Command::Clean => {
-            clean(&cli.cache)?;
-            Ok(true)
-        }
+        cli::Command::Cache(cache_cmd) => match &cache_cmd.command {
+            cli::CacheCommand::Rm => {
+                cache::rm(&cli.cache)?;
+                Ok(true)
+            }
+            cli::CacheCommand::Gc { size } => {
+                let cache_file = cli.cache.join("cache");
+                cache::gc(&cache_file, *size)?;
+                Ok(true)
+            }
+        },
         cli::Command::Run(run) => {
             let config = config.ok_or_else(|| anyhow::anyhow!("Config file not found"))?;
             run::go(&cli, run, &config, &lints).map(bool::from)
