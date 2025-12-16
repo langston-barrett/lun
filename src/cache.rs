@@ -2,8 +2,8 @@ use std::{
     collections::HashMap,
     fs,
     hash::Hash as _,
+    mem::size_of,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result};
@@ -51,21 +51,6 @@ impl From<&Key> for KeyHash {
     }
 }
 
-/// Calculate the number of days since January 1, 2000 (Unix epoch: 946684800)
-fn days_since_year_2000() -> u16 {
-    let epoch_2000 = 946_684_800_u64; // Unix timestamp for 2000-01-01 00:00:00 UTC
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
-    if now < epoch_2000 {
-        return 0;
-    }
-    let secs_per_day = 24 * 60 * 60;
-    let days = now.saturating_sub(epoch_2000) / secs_per_day;
-    days.min(u16::MAX as u64) as u16
-}
-
 pub(crate) trait CacheWriter {
     fn done(&mut self, key: &Key);
     fn done_hash(&mut self, hash: KeyHash);
@@ -104,9 +89,13 @@ pub(crate) struct HashCache {
     file: PathBuf,
 }
 
-// Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 8 bytes total
+// Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 6 bytes total
 const HEADER_SIZE: usize = 6;
-const RECORD_SIZE: usize = 10; // 2 bytes (u16) + 8 bytes (u64)
+const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (u16 counter) + 8 bytes (u64 hash)
+// For reference rust-lang/rust has 32000 (~ 2^15) .rs files
+// 2^17 * 10 bytes is ~ 1.25 MiB
+const MAX_CACHE_SIZE_ENTRIES: usize = (2 << 17) * RECORD_SIZE;
+// const MAX_CACHE_SIZE_BYTES: usize = MAX_CACHE_SIZE_ENTRIES * RECORD_SIZE;
 
 #[allow(clippy::unwrap_used)]
 fn current_version() -> (u16, u16, u16) {
@@ -145,14 +134,6 @@ impl HashCache {
             hashes: HashMap::new(),
             file,
         }
-    }
-
-    fn filter(&mut self) -> usize {
-        let current_days = days_since_year_2000();
-        let cutoff_days = current_days.saturating_sub(30);
-        let initial_count = self.hashes.len();
-        self.hashes.retain(|_, &mut days| days >= cutoff_days);
-        initial_count - self.hashes.len()
     }
 
     pub(crate) fn from_file(file: &Path) -> Result<Self> {
@@ -225,37 +206,51 @@ impl HashCache {
     }
 
     fn load_records(&mut self, contents: &[u8]) {
-        assert_eq!(contents.len() % RECORD_SIZE, 0);
+        assert_eq!(contents.len() % RECORD_SIZE, 0); // cache_ok
         self.hashes.reserve(contents.len() / RECORD_SIZE);
         #[allow(clippy::unwrap_used)]
         for chunk in contents.chunks_exact(RECORD_SIZE) {
-            let days = u16::from_le_bytes(chunk[0..2].try_into().unwrap());
-            let hash_value = u64::from_le_bytes(chunk[2..10].try_into().unwrap());
-            self.hashes.insert(KeyHash(file::Xxhash(hash_value)), days);
+            let counter = u16::from_le_bytes(chunk[0..size_of::<u16>()].try_into().unwrap());
+            let hash_value = u64::from_le_bytes(
+                chunk[size_of::<u16>()..size_of::<u16>() + size_of::<KeyHash>()]
+                    .try_into()
+                    .unwrap(),
+            );
+            self.hashes
+                .insert(KeyHash(file::Xxhash(hash_value)), counter);
         }
     }
 
     fn serialize(&mut self) -> Vec<u8> {
-        let record_size = 8 + 2;
-        // hash + date
         debug!(
             "Flushing cache of size {} to {}",
-            self.hashes.len() * record_size,
+            self.hashes.len() * RECORD_SIZE,
             self.file.display(),
         );
-        let filtered_count = self.filter();
-        if filtered_count > 0 {
-            debug!("Filtered {} hashes older than 30 days", filtered_count);
-        }
-        let mut entries: Vec<(u16, u64)> =
-            self.hashes.iter().map(|(h, &days)| (days, h.0.0)).collect();
-        entries.sort_by_key(|(_, hash)| *hash);
-        let mut content = Vec::with_capacity(HEADER_SIZE + entries.len() * record_size);
 
+        let mut entries: Vec<(u16, u64)> = self
+            .hashes
+            .iter()
+            .map(|(h, &counter)| (counter.saturating_add(1), h.0.0))
+            .collect();
+
+        // Sort by counter, then by hash
+        entries.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
+        let initial_count = entries.len();
+        let to_keep = entries.len().min(MAX_CACHE_SIZE_ENTRIES);
+        let removed_count = initial_count.saturating_sub(to_keep);
+        debug!("Dropping {} old cache entries", removed_count);
+
+        let mut content = Vec::with_capacity(HEADER_SIZE + to_keep * RECORD_SIZE);
         let (major, minor, patch) = current_version();
         content.extend_from_slice(&serialize_version_header(major, minor, patch));
-        for (days, hash_value) in entries {
-            content.extend_from_slice(&days.to_le_bytes());
+
+        for (counter, hash_value) in entries.into_iter().take(to_keep) {
+            debug_assert_eq!(
+                counter.to_le_bytes().len() + hash_value.to_le_bytes().len(),
+                RECORD_SIZE
+            );
+            content.extend_from_slice(&counter.to_le_bytes());
             content.extend_from_slice(&hash_value.to_le_bytes());
         }
         content
@@ -265,8 +260,7 @@ impl HashCache {
 impl CacheWriter for HashCache {
     #[inline]
     fn done_hash(&mut self, hash: KeyHash) {
-        let days = days_since_year_2000();
-        self.hashes.insert(hash, days);
+        self.hashes.insert(hash, 0);
     }
 
     #[inline]
