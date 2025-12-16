@@ -58,7 +58,7 @@ pub(crate) trait CacheWriter {
 }
 
 pub(crate) trait Cache: CacheWriter {
-    fn needed(&self, key: &Key) -> bool;
+    fn needed(&mut self, key: &Key) -> bool;
 }
 
 pub(crate) struct HashCache {
@@ -253,13 +253,13 @@ impl CacheWriter for HashCache {
     #[inline]
     fn done_hash(&mut self, hash: KeyHash) {
         let was_new = self.hashes.insert(hash, 0).is_none();
-        if was_new {
-            self.entries_added += 1;
-        }
+        debug_assert!(was_new);
+        self.entries_added += 1;
     }
 
     #[inline]
     fn done(&mut self, key: &Key) {
+        debug_assert!(self.needed(key));
         self.done_hash(KeyHash::from(key));
     }
 
@@ -273,8 +273,10 @@ impl CacheWriter for HashCache {
 
 impl Cache for HashCache {
     #[inline]
-    fn needed(&self, key: &Key) -> bool {
-        !self.hashes.contains_key(&KeyHash::from(key))
+    fn needed(&mut self, key: &Key) -> bool {
+        let hash = KeyHash::from(key);
+        self.hashes.entry(hash).and_modify(|e| *e = 0);
+        !self.hashes.contains_key(&hash)
     }
 }
 
@@ -390,7 +392,7 @@ mod tests {
             cache.flush().unwrap();
         }
         {
-            let cache = HashCache::from_file(temp_file.path(), None).unwrap();
+            let mut cache = HashCache::from_file(temp_file.path(), None).unwrap();
             assert!(!cache.needed(&key));
         }
     }
