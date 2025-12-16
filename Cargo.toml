@@ -1,6 +1,6 @@
 [package]
 name = "lun"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Langston Barrett <langston.barrett@gmail.com>"]
 keywords = ["linter"]
 edition = "2024"

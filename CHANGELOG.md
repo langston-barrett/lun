@@ -2,7 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.5.0] - 2025-12-16
+
+[0.5.0]: https://github.com/langston-barrett/lun/releases/tag/v0.5.0
 
 - Add `--no-cache` flag to disable cache
 - Add `--no-refs` flag to ignore any refs from CLI or config file
