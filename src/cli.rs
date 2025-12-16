@@ -25,8 +25,8 @@ pub(crate) struct Cli {
 #[derive(Debug, clap::Subcommand)]
 pub(crate) enum Command {
     Run(Run),
-    /// Delete the cache
-    Clean,
+    /// Cache management commands
+    Cache(Cache),
     Init(Init),
     Add(Add),
     /// Show available warnings
@@ -34,6 +34,25 @@ pub(crate) enum Command {
         /// Show documentation for a specific warnings
         #[arg(value_name = "WARN")]
         warn: Option<String>,
+    },
+}
+
+/// Cache management commands
+#[derive(Debug, clap::Parser)]
+pub(crate) struct Cache {
+    #[command(subcommand)]
+    pub(crate) command: CacheCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub(crate) enum CacheCommand {
+    /// Remove the cache
+    Rm,
+    /// Garbage collect the cache to reduce its size
+    Gc {
+        /// Maximum cache size in bytes (defaults to default max cache size)
+        #[arg(long, value_name = "BYTES")]
+        size: Option<usize>,
     },
 }
 
