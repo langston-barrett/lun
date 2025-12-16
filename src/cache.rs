@@ -62,7 +62,7 @@ pub(crate) trait Cache: CacheWriter {
 }
 
 pub(crate) struct HashCache {
-    hashes: HashMap<KeyHash, u16>,
+    pub(crate) hashes: HashMap<KeyHash, u16>,
     file: PathBuf,
     pub(crate) max_entries: usize,
     pub(crate) entries_added: usize, // used in warnings
@@ -300,6 +300,41 @@ pub(crate) fn gc(cache_file: &Path, max_size_bytes: Option<usize>) -> Result<(),
     } else {
         info!("Cache already within size limit");
     }
+    Ok(())
+}
+
+pub(crate) fn stats(cache_file: &Path) -> Result<(), anyhow::Error> {
+    const KIBI: usize = 1024;
+    const TWO_KIBI: usize = 2 * KIBI;
+    if !cache_file.exists() {
+        info!("No cache file at {}", cache_file.display());
+        return Ok(());
+    }
+    let cache = HashCache::from_file(cache_file, None)?;
+    let records = cache.hashes.len();
+    let total_size_bytes = HEADER_SIZE + records * RECORD_SIZE;
+    let max_records = cache.max_entries;
+    let max_size_bytes = HEADER_SIZE + max_records * RECORD_SIZE;
+    let percentage_used = if max_records > 0 {
+        (records * 100) / max_records
+    } else {
+        0
+    };
+    info!("Records: {records}");
+    if total_size_bytes > TWO_KIBI {
+        let total_size_kibi = total_size_bytes / KIBI;
+        info!("Total size: {total_size_kibi} KiB");
+    } else {
+        info!("Total size: {total_size_bytes} bytes");
+    }
+    info!("Max records: {max_records}");
+    if max_size_bytes > TWO_KIBI {
+        let max_size_kibi = max_size_bytes / KIBI;
+        info!("Max size: {max_size_kibi} KiB");
+    } else {
+        info!("Max size: {max_size_bytes} bytes");
+    }
+    info!("Percentage used: {percentage_used}%");
     Ok(())
 }
 

@@ -54,6 +54,8 @@ pub(crate) enum CacheCommand {
         #[arg(long, value_name = "BYTES")]
         size: Option<usize>,
     },
+    /// Print cache statistics
+    Stats,
 }
 
 /// Run linters and formatters
