@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tracing::debug;
 
-use crate::{file, run::RunMode, tool};
+use crate::{file, known, run::RunMode, tool};
 
 fn default<T: Default + PartialEq>(t: &T) -> bool {
     *t == Default::default()
@@ -80,6 +80,10 @@ pub(crate) struct Config {
     #[serde(skip_serializing_if = "default")]
     pub(crate) refs: Vec<String>,
 
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) tool: Vec<KnownTool>,
+
     #[serde(flatten)]
     pub(crate) warns: WarnCfg,
 }
@@ -99,8 +103,25 @@ impl Config {
                     .with_context(|| format!("Failed to read config file: {}", path.display()))?,
             },
         };
-        toml::from_str(&contents)
-            .with_context(|| format!("Failed to parse config file: {}", path.display()))
+        let mut config: Config = toml::from_str(&contents)
+            .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
+        config.known_tools()?;
+        Ok(Some(config))
+    }
+
+    fn known_tools(&mut self) -> Result<()> {
+        for known_tool in &self.tool {
+            if let Some(mut linter) = known::known_linter_by_name(&known_tool.name) {
+                known_tool.merge_into_linter(&mut linter)?;
+                self.linter.push(linter);
+            } else if let Some(mut formatter) = known::known_formatter_by_name(&known_tool.name) {
+                known_tool.merge_into_formatter(&mut formatter)?;
+                self.formatter.push(formatter);
+            } else {
+                anyhow::bail!("Unknown tool name in [[tool]]: {}", known_tool.name);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -152,6 +173,88 @@ pub(crate) struct Formatter {
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) check: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct KnownTool {
+    pub(crate) name: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) cmd: Option<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) files: Vec<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) ignore: Vec<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) granularity: Option<Granularity>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) configs: Vec<PathBuf>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) cd: Option<PathBuf>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) fix: Option<String>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) check: Option<String>,
+}
+
+impl KnownTool {
+    fn merge_into_linter(&self, linter: &mut Linter) -> Result<()> {
+        if let Some(ref cmd) = self.cmd {
+            linter.tool.cmd = cmd.clone();
+        }
+        if !self.files.is_empty() {
+            linter.tool.files = self.files.clone();
+        }
+        if !self.ignore.is_empty() {
+            linter.tool.ignore = self.ignore.clone();
+        }
+        if let Some(granularity) = self.granularity {
+            linter.tool.granularity = granularity;
+        }
+        if !self.configs.is_empty() {
+            linter.tool.configs = self.configs.clone();
+        }
+        if let Some(ref cd) = self.cd {
+            linter.tool.cd = Some(cd.clone());
+        }
+        if let Some(ref fix) = self.fix {
+            linter.fix = Some(fix.clone());
+        }
+        Ok(())
+    }
+
+    fn merge_into_formatter(&self, formatter: &mut Formatter) -> Result<()> {
+        if let Some(ref cmd) = self.cmd {
+            formatter.tool.cmd = cmd.clone();
+        }
+        if !self.files.is_empty() {
+            formatter.tool.files = self.files.clone();
+        }
+        if !self.ignore.is_empty() {
+            formatter.tool.ignore = self.ignore.clone();
+        }
+        if let Some(granularity) = self.granularity {
+            formatter.tool.granularity = granularity;
+        }
+        if !self.configs.is_empty() {
+            formatter.tool.configs = self.configs.clone();
+        }
+        if let Some(ref cd) = self.cd {
+            formatter.tool.cd = Some(cd.clone());
+        }
+        if let Some(ref check) = self.check {
+            formatter.check = Some(check.clone());
+        }
+        Ok(())
+    }
 }
 
 fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp> {
