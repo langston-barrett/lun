@@ -5,6 +5,7 @@
 ## next
 
 - Also include relevant environment variables in cache keys
+- More statistics in `cache stats`
 
 ## [0.5.0] - 2025-12-16
 

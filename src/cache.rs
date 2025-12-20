@@ -322,6 +322,29 @@ pub(crate) fn stats(cache_file: &Path) -> Result<(), anyhow::Error> {
     } else {
         0
     };
+
+    // Calculate records in most recent run (counter == 0)
+    let records_most_recent_run = cache
+        .hashes
+        .values()
+        .filter(|&&counter| counter == 0)
+        .count();
+
+    // Calculate average records per run
+    // Count records by counter value to determine how many runs are represented
+    let max_counter = cache.hashes.values().max().copied().unwrap_or(0);
+    let runs_represented = if records > 0 {
+        max_counter as usize + 1
+    } else {
+        0
+    };
+    let avg_records_per_run = if runs_represented > 0 {
+        records / runs_represented
+    } else {
+        0
+    };
+
+    info!("Number of runs: {runs_represented}");
     info!("Records: {records}");
     if total_size_bytes > TWO_KIBI {
         let total_size_kibi = total_size_bytes / KIBI;
@@ -337,6 +360,8 @@ pub(crate) fn stats(cache_file: &Path) -> Result<(), anyhow::Error> {
         info!("Max size: {max_size_bytes} bytes");
     }
     info!("Percentage used: {percentage_used}%");
+    info!("Records in most recent run: {records_most_recent_run}");
+    info!("Average records per run: {avg_records_per_run}");
     Ok(())
 }
 
