@@ -30,10 +30,10 @@ Also, it's written in Rust.
 
 ### Caching
 
-Whenever you run a linter on a file via Lūn, it saves a record (i.e., a hash)
-constructed from  several components, including the file path, file metadata
-(modification time, size, permissions, etc.), and the linter command line (see
-the documentation for a comprehensive list). Before running any tool, Lūn first
+Whenever you run a linter on a file via Lūn, it saves a record constructed from
+several components. These include the file path, file metadata (modification
+time, size, permissions, etc.), and the linter command line (see the
+documentation for a comprehensive list). Before running any tool, Lūn first
 consults this cache to see if it has a corresponding entry. If so, it skips
 running the linter again.
 

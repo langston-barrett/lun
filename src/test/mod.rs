@@ -37,7 +37,7 @@ impl TestFile {
         let mut metadata_hasher = Xxh3::new();
         metadata_hasher.update(self.path.as_os_str().as_encoded_bytes());
         metadata_hasher.update(&self.size.to_le_bytes());
-        let metadata_stamp = file::Stamp(file::Xxhash(metadata_hasher.digest()));
+        let metadata_stamp = file::Stamp(file::Xxhash(metadata_hasher.digest128()));
         let mtime_stamp = file::Stamp(file::Xxhash(0));
         let content_stamp = Some(file::Stamp(file::compute_hash(self.content.as_bytes())));
         file::File {

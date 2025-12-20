@@ -47,7 +47,7 @@ impl From<&Key> for KeyHash {
     fn from(key: &Key) -> Self {
         let mut hasher = Xxh3::new();
         key.hash(&mut hasher);
-        KeyHash(file::Xxhash(hasher.digest()))
+        KeyHash(file::Xxhash(hasher.digest128()))
     }
 }
 
@@ -70,9 +70,9 @@ pub(crate) struct HashCache {
 
 // Header format: 2 bytes (major) + 2 bytes (minor) + 2 bytes (patch) = 6 bytes total
 const HEADER_SIZE: usize = 6;
-const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (u16 counter) + 8 bytes (u64 hash)
+const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (u16 counter) + 16 bytes (u128 hash)
 // For reference rust-lang/rust has 32000 (~ 2^15) .rs files
-// 2^17 * 10 bytes is ~ 1.25 MiB
+// 2^17 * 18 bytes is ~ 2.25 MiB
 pub(crate) const DEFAULT_MAX_CACHE_SIZE_BYTES: usize = (2 << 17) * RECORD_SIZE;
 
 /// Calculate the maximum number of cache entries from a byte size.
@@ -202,7 +202,7 @@ impl HashCache {
         #[allow(clippy::unwrap_used)]
         for chunk in contents.chunks_exact(RECORD_SIZE) {
             let counter = u16::from_le_bytes(chunk[0..size_of::<u16>()].try_into().unwrap());
-            let hash_value = u64::from_le_bytes(
+            let hash_value = u128::from_le_bytes(
                 chunk[size_of::<u16>()..size_of::<u16>() + size_of::<KeyHash>()]
                     .try_into()
                     .unwrap(),
@@ -219,7 +219,7 @@ impl HashCache {
             self.file.display(),
         );
 
-        let mut entries: Vec<(u16, u64)> = self
+        let mut entries: Vec<(u16, u128)> = self
             .hashes
             .iter()
             .map(|(h, &counter)| (counter.saturating_add(1), h.0.0))
@@ -373,9 +373,9 @@ mod tests {
     fn create_test_key(path: &str, cmd: &str) -> Key {
         let mut hasher = Xxh3::new();
         hasher.update(cmd.as_bytes());
-        let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest()));
+        let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest128()));
         Key::new(
-            file::Stamp(file::Xxhash(path.len() as u64 + 12345)),
+            file::Stamp(file::Xxhash(path.len() as u128 + 12345)),
             tool_stamp,
         )
     }
