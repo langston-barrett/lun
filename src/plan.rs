@@ -3,9 +3,9 @@ use std::{num::NonZeroUsize, sync::Arc};
 use anyhow::Result;
 use tracing::{debug, trace};
 
-use crate::{cache, cmd, file, git, job, tool};
+use crate::{cache, cmd, file as files, git, job, tool};
 
-fn is_match(tool: &Arc<tool::Tool>, f: &file::File) -> bool {
+fn is_match(tool: &Arc<tool::Tool>, f: &files::File) -> bool {
     let path = f.path.as_path();
     if !tool.files.is_match(path) {
         return false;
@@ -26,7 +26,7 @@ fn need_file<C: cache::Cache + ?Sized>(
     git_refs: &[String],
     mtime_enabled: bool,
     tool: &Arc<tool::Tool>,
-    file: &mut file::File,
+    file: &mut files::File,
 ) -> bool {
     let mtime_key = cache::Key::from_mtime(file, tool);
     if mtime_enabled && !cache.needed(&mtime_key) {
@@ -65,7 +65,7 @@ fn need_file<C: cache::Cache + ?Sized>(
 
 fn tool_commands<C: cache::Cache + ?Sized>(
     tool: &tool::Tool,
-    files: &mut [file::File],
+    files: &mut [files::File],
     cache: &mut C,
     git_refs: &[String],
     mtime_enabled: bool,
@@ -98,7 +98,7 @@ fn tool_commands<C: cache::Cache + ?Sized>(
 pub(crate) fn plan<C: cache::Cache + ?Sized>(
     cache: &mut C,
     tools: &[tool::Tool],
-    files: &[file::File],
+    files: &[files::File],
     git_refs: &[String],
     cores: NonZeroUsize,
     no_batch: bool,
