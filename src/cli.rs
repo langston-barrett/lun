@@ -56,6 +56,49 @@ pub(crate) enum CacheCommand {
     },
     /// Print cache statistics
     Stats,
+    /// Create, query, and remove freeform cache entries
+    Entry(CacheEntry),
+}
+
+/// Cache entry management commands
+#[derive(Debug, clap::Parser)]
+pub(crate) struct CacheEntry {
+    #[command(subcommand)]
+    pub(crate) command: CacheEntryCommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub(crate) enum CacheEntryCommand {
+    /// Add entries to the cache
+    Add {
+        /// Cache key (freeform)
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// Files to add entries for
+        #[arg(value_name = "FILE", required = true)]
+        files: Vec<PathBuf>,
+    },
+    /// Check if entries exist in the cache
+    Get {
+        /// Cache key (freeform)
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// Files to check entries for
+        #[arg(value_name = "FILE", required = true)]
+        files: Vec<PathBuf>,
+        /// Use null-separated output
+        #[arg(short = '0')]
+        null_separated: bool,
+    },
+    /// Remove entries from the cache
+    Rm {
+        /// Cache key (freeform)
+        #[arg(value_name = "KEY")]
+        key: String,
+        /// Files to remove entries for
+        #[arg(value_name = "FILE", required = true)]
+        files: Vec<PathBuf>,
+    },
 }
 
 /// Run linters and formatters
