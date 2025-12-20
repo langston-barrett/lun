@@ -86,12 +86,12 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         },
         config::Linter {
             tool: config::Tool {
-                name: Some("ty".to_string()),
-                cmd: "ty check --".to_string(),
-                files: vec!["*.py".to_string()],
+                name: Some("tagref".to_string()),
+                cmd: "tagref check --".to_string(),
+                files: vec!["*".to_string()],
                 ignore: Vec::new(),
                 granularity: Granularity::Batch,
-                configs: vec![PathBuf::from("pyproject.toml"), PathBuf::from("ty.toml")],
+                configs: Vec::new(),
                 cd: None,
             },
             fix: None,
@@ -107,6 +107,18 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
                 cd: None,
             },
             fix: Some("ttlint --fix --".to_string()),
+        },
+        config::Linter {
+            tool: config::Tool {
+                name: Some("ty".to_string()),
+                cmd: "ty check --".to_string(),
+                files: vec!["*.py".to_string()],
+                ignore: Vec::new(),
+                granularity: Granularity::Batch,
+                configs: vec![PathBuf::from("pyproject.toml"), PathBuf::from("ty.toml")],
+                cd: None,
+            },
+            fix: None,
         },
         config::Linter {
             tool: config::Tool {
