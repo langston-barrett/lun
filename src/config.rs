@@ -1,6 +1,6 @@
 use std::{
-    fs, io,
-    io::IsTerminal,
+    env, fs,
+    io::{self, IsTerminal},
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -174,6 +174,19 @@ fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp
     if let Some(cd) = &tool.cd {
         hasher.update(cd.as_os_str().as_encoded_bytes());
     }
+
+    let exe_name = cmd.split_whitespace().next().unwrap_or(cmd);
+    let env_pfx = format!("{}_", exe_name.to_uppercase());
+    let mut env_vars = env::vars_os()
+        .filter(|(key, _)| key.as_encoded_bytes().starts_with(env_pfx.as_bytes()))
+        .collect::<Vec<_>>();
+    env_vars.sort_by(|a, b| a.0.cmp(&b.0));
+    for (key, value) in &env_vars {
+        debug!("Found relevant environment variable {}", key.display());
+        hasher.update(key.as_encoded_bytes());
+        hasher.update(value.as_encoded_bytes());
+    }
+
     Ok(tool::Stamp(file::Xxhash(hasher.digest())))
 }
 
