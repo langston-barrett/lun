@@ -24,8 +24,7 @@ pub(crate) struct File {
     pub(crate) content_stamp: Option<Stamp>,
 }
 
-fn compute_md_stamp(path: &Path, metadata: &fs::Metadata) -> Stamp {
-    let mut md = Xxh3::new();
+pub(crate) fn hash_md(path: &Path, metadata: &fs::Metadata, md: &mut Xxh3) {
     md.update(path.as_os_str().as_encoded_bytes());
     md.update(&metadata.len().to_le_bytes());
     #[cfg(unix)]
@@ -35,14 +34,22 @@ fn compute_md_stamp(path: &Path, metadata: &fs::Metadata) -> Stamp {
         md.update(&metadata.gid().to_le_bytes());
         md.update(&metadata.mode().to_le_bytes());
     }
+}
+
+fn compute_md_stamp(path: &Path, metadata: &fs::Metadata) -> Stamp {
+    let mut md = Xxh3::new();
+    hash_md(path, metadata, &mut md);
     Stamp(Xxhash(md.digest()))
 }
 
-fn compute_mtime_stamp(path: &Path, metadata: &fs::Metadata) -> Result<Stamp, anyhow::Error> {
+pub(crate) fn hash_mtime(
+    path: &Path,
+    metadata: &fs::Metadata,
+    mtime_hasher: &mut Xxh3,
+) -> Result<(), anyhow::Error> {
     let mtime = metadata
         .modified()
         .with_context(|| format!("Failed to get modification time for: {}", path.display()))?;
-    let mut mtime_hasher = Xxh3::new();
     mtime_hasher.update(
         &mtime
             .duration_since(std::time::UNIX_EPOCH)
@@ -50,6 +57,12 @@ fn compute_mtime_stamp(path: &Path, metadata: &fs::Metadata) -> Result<Stamp, an
             .as_nanos()
             .to_le_bytes(),
     );
+    Ok(())
+}
+
+fn compute_mtime_stamp(path: &Path, metadata: &fs::Metadata) -> Result<Stamp, anyhow::Error> {
+    let mut mtime_hasher = Xxh3::new();
+    hash_mtime(path, metadata, &mut mtime_hasher)?;
     let mtime_stamp = Stamp(Xxhash(mtime_hasher.digest()));
     Ok(mtime_stamp)
 }

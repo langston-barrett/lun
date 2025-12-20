@@ -292,18 +292,18 @@ fn build_config_hash(tool: &str, configs: &[PathBuf]) -> Result<Option<file::Xxh
     }
     let mut sorted = configs.to_vec();
     sorted.sort();
-    let mut combined = Vec::new();
+    let mut hasher = xxhash_rust::xxh3::Xxh3::new();
     for path in &sorted {
-        let content = fs::read_to_string(path).with_context(|| {
+        let metadata = fs::metadata(path).with_context(|| {
             format!(
-                "Failed to read config file for `{tool}`: {}",
+                "Failed to get metadata for config file for `{tool}`: {}",
                 path.display()
             )
         })?;
-        combined.extend_from_slice(path.as_os_str().as_encoded_bytes());
-        combined.extend_from_slice(content.as_bytes());
+        file::hash_md(path, &metadata, &mut hasher);
+        file::hash_mtime(path, &metadata, &mut hasher)?;
     }
-    Ok(Some(file::compute_hash(&combined)))
+    Ok(Some(file::Xxhash(hasher.digest())))
 }
 
 fn build_files_globset(patterns: &[String], tool_name: &str) -> Result<GlobSet> {
