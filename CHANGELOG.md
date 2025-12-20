@@ -2,7 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.6.0] - 2025-12-20
+
+[0.6.0]: https://github.com/langston-barrett/lun/releases/tag/v0.6.0
 
 - Also include relevant environment variables in cache keys
 - More statistics in `cache stats`
