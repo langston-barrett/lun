@@ -22,19 +22,19 @@ do_time() { echo -- "${@}"; command time -- "${@}"; }
 
 # ---------------- Clean checkout
 
-lun clean
+lun cache rm
 lun run --dry-run --ninja --no-batch
 do_time ninja -f .lun/build.ninja
 
-lun clean
+lun cache rm
 do_time lun run --no-batch
 
-lun clean
+lun cache rm
 do_time lun run
 
 # ---------------- Checkout old commit
 
-lun clean
+lun cache rm
 lun run --ninja
 # remove just the non-ninja cache to act like ninja would
 for f in .lun/*; do
@@ -46,7 +46,7 @@ git checkout "${ver}"
 lun run --dry-run --ninja --no-batch
 do_time ninja -f .lun/build.ninja
 
-lun clean
+lun cache rm
 lun run
 git checkout 0.7.0
 git checkout "${ver}"

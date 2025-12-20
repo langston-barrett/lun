@@ -72,7 +72,7 @@ lint and format changed files.
   - `--staged`: only run on staged files (i.e., in a pre-commit hook)
   - `--watch`: rerun when files are changed
 - `lun add`: add a known tool to the configuration file
-- `lun clean`: delete the cache
+- `lun cache`: manage the cache
 
 See `--help` for a comprehensive list.
 

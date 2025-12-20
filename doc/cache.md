@@ -1,8 +1,9 @@
 # Caching
 
 Lūn uses a cache to avoid re-running tools on files that haven't changed. By
-default, the cache is stored in `.lun/cache` in the project root. `lun clean`
-clears the cache. Cache entries older than 30 days are automatically deleted.
+default, the cache is stored in `.lun/cache` in the project root. `lun cache`
+can be used to manage the cache. The cache is automatically kept below a (small)
+maximum size.
 
 ## Keys
 
@@ -12,7 +13,7 @@ There are two kinds of cache entry. They both include the following:
 - File metadata, including size, owner UID and GID, and permissions (mode)
 - Tool command line
 - Tool working directory, if specified
-- Content of the tool configuration file(s), if specified
+- Metadata of the tool configuration file(s), if specified
 - Names and content of relevant environment variables[^env]
 - Output of the tool's `--version` flag (if `--careful` is used)
 
