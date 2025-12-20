@@ -28,6 +28,12 @@ cmd = "shellcheck --color=always --"
 files = ["*.sh"]
 
 [[linter]]
+name = "tagref"
+cmd = "tagref check --"
+files = ["*"]
+granularity = "batch"
+
+[[linter]]
 name = "ttlint"
 cmd = "ttlint --"
 files = ["*"]
