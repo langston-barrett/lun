@@ -90,10 +90,10 @@ pub(crate) fn exec(
 
 fn tgt_name(cmd: &cmd::Command) -> String {
     let hash = cmd_hash(cmd);
-    format!("$builddir/{hash:016x}")
+    format!("$builddir/{hash:032x}")
 }
 
-fn cmd_hash(cmd: &cmd::Command) -> u64 {
+fn cmd_hash(cmd: &cmd::Command) -> u128 {
     let mut hasher = Xxh3::new();
     let cmd_obj = cmd.to_command();
     let program_str = cmd_obj.get_program().to_string_lossy();
@@ -109,7 +109,7 @@ fn cmd_hash(cmd: &cmd::Command) -> u64 {
         hasher.update(path_str.as_bytes());
         hasher.update(&[0]);
     }
-    hasher.digest()
+    hasher.digest128()
 }
 
 fn generate_ninja_file(

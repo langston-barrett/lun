@@ -187,7 +187,7 @@ fn build_tool_stamp(tool: &Tool, cmd: &str, careful: bool) -> Result<tool::Stamp
         hasher.update(value.as_encoded_bytes());
     }
 
-    Ok(tool::Stamp(file::Xxhash(hasher.digest())))
+    Ok(tool::Stamp(file::Xxhash(hasher.digest128())))
 }
 
 fn build_tool_globsets(
@@ -303,7 +303,7 @@ fn build_config_hash(tool: &str, configs: &[PathBuf]) -> Result<Option<file::Xxh
         file::hash_md(path, &metadata, &mut hasher);
         file::hash_mtime(path, &metadata, &mut hasher)?;
     }
-    Ok(Some(file::Xxhash(hasher.digest())))
+    Ok(Some(file::Xxhash(hasher.digest128())))
 }
 
 fn build_files_globset(patterns: &[String], tool_name: &str) -> Result<GlobSet> {

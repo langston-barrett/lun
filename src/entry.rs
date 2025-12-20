@@ -10,7 +10,7 @@ use crate::tool;
 pub(crate) fn add(cache_file: &Path, string: &str, files: &[PathBuf]) -> Result<(), anyhow::Error> {
     let mut hasher = Xxh3::new();
     hasher.update(string.as_bytes());
-    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest()));
+    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest128()));
     let mut cache = HashCache::from_file(cache_file, None)?;
     for file_path in files {
         let file = file::File::new(file_path.clone())
@@ -33,7 +33,7 @@ pub(crate) fn get(
 ) -> Result<(), anyhow::Error> {
     let mut hasher = Xxh3::new();
     hasher.update(string.as_bytes());
-    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest()));
+    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest128()));
     let cache = HashCache::from_file(cache_file, None)?;
     for file_path in files {
         let file = file::File::new(file_path.clone())
@@ -56,7 +56,7 @@ pub(crate) fn get(
 pub(crate) fn rm(cache_file: &Path, string: &str, files: &[PathBuf]) -> Result<(), anyhow::Error> {
     let mut hasher = Xxh3::new();
     hasher.update(string.as_bytes());
-    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest()));
+    let tool_stamp = tool::Stamp(file::Xxhash(hasher.digest128()));
     let mut cache = HashCache::from_file(cache_file, None)?;
     for file_path in files {
         let file = file::File::new(file_path.clone())

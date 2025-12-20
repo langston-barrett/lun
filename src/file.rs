@@ -9,7 +9,7 @@ use xxhash_rust::xxh3::Xxh3;
 use crate::exec;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Xxhash(pub(crate) u64);
+pub(crate) struct Xxhash(pub(crate) u128);
 
 /// Hash of file path, content, and metadata
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -39,7 +39,7 @@ pub(crate) fn hash_md(path: &Path, metadata: &fs::Metadata, md: &mut Xxh3) {
 fn compute_md_stamp(path: &Path, metadata: &fs::Metadata) -> Stamp {
     let mut md = Xxh3::new();
     hash_md(path, metadata, &mut md);
-    Stamp(Xxhash(md.digest()))
+    Stamp(Xxhash(md.digest128()))
 }
 
 pub(crate) fn hash_mtime(
@@ -63,7 +63,7 @@ pub(crate) fn hash_mtime(
 fn compute_mtime_stamp(path: &Path, metadata: &fs::Metadata) -> Result<Stamp, anyhow::Error> {
     let mut mtime_hasher = Xxh3::new();
     hash_mtime(path, metadata, &mut mtime_hasher)?;
-    let mtime_stamp = Stamp(Xxhash(mtime_hasher.digest()));
+    let mtime_stamp = Stamp(Xxhash(mtime_hasher.digest128()));
     Ok(mtime_stamp)
 }
 
@@ -100,21 +100,21 @@ impl File {
         if let Some(content_stamp) = self.content_stamp {
             hasher.update(&content_stamp.0.0.to_le_bytes());
         }
-        Stamp(Xxhash(hasher.digest()))
+        Stamp(Xxhash(hasher.digest128()))
     }
 
     pub(crate) fn mtime_stamp(&self) -> Stamp {
         let mut hasher = Xxh3::new();
         hasher.update(&self.metadata_stamp.0.0.to_le_bytes());
         hasher.update(&self.mtime_stamp.0.0.to_le_bytes());
-        Stamp(Xxhash(hasher.digest()))
+        Stamp(Xxhash(hasher.digest128()))
     }
 }
 
 pub(crate) fn compute_hash(content: &[u8]) -> Xxhash {
     let mut hasher = Xxh3::new();
     hasher.update(content);
-    Xxhash(hasher.digest())
+    Xxhash(hasher.digest128())
 }
 
 pub(crate) fn collect_files(
