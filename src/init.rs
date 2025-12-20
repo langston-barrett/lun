@@ -61,6 +61,7 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
         ninja: None,
         ignore: Vec::new(),
         cache_size: None,
+        tool: Vec::new(),
         warns: config::WarnCfg {
             allow: init.allow.clone(),
             warn: init.warn.clone(),

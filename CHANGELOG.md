@@ -8,6 +8,7 @@
 - More statistics in `cache stats`
 - Add `cache entry` subcommand for freeform cache usage
 - Add [tagref](https://github.com/stepchowfun/tagref/) to known tools
+- Add `[[tool]]` list to config for quickly specifying known tools
 
 ## [0.5.0] - 2025-12-16
 

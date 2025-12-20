@@ -216,6 +216,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                     ninja: None,
                     ignore: Vec::new(),
                     cache_size: None,
+                    tool: Vec::new(),
                 },
                 files,
                 expected_output: Vec::new(),
@@ -419,6 +420,7 @@ fn parse_test_file_debug() {
                     mtime: true,
                     ninja: None,
                     refs: [],
+                    tool: [],
                     warns: WarnCfg {
                         allow: [],
                         warn: [],
@@ -465,6 +467,7 @@ fn parse_test_file_debug() {
                     mtime: true,
                     ninja: None,
                     refs: [],
+                    tool: [],
                     warns: WarnCfg {
                         allow: [],
                         warn: [],
