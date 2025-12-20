@@ -13,10 +13,13 @@ There are two kinds of cache entry. They both include the following:
 - Tool command line
 - Tool working directory, if specified
 - Content of the tool configuration file(s), if specified
+- Names and content of relevant environment variables[^env]
 - Output of the tool's `--version` flag (if `--careful` is used)
 
 `mtime` entries also include the file modification time.
 *Content* entries also include the hash of the file content.
+
+[^env]: Variables that start with `EXE_` where `EXE` is the upper-cased version of the name of the tool binary.
 
 ## Caching strategy
 
