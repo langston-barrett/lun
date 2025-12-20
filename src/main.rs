@@ -7,6 +7,7 @@ mod cache;
 mod cli;
 mod cmd;
 mod config;
+mod entry;
 mod exec;
 mod file;
 mod git;
@@ -50,6 +51,27 @@ pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> 
                 let cache_file = cli.cache.join("cache");
                 cache::stats(&cache_file)?;
                 Ok(true)
+            }
+            cli::CacheCommand::Entry(entry_cmd) => {
+                let cache_file = cli.cache.join("cache");
+                match &entry_cmd.command {
+                    cli::CacheEntryCommand::Add { key, files } => {
+                        entry::add(&cache_file, key, files)?;
+                        Ok(true)
+                    }
+                    cli::CacheEntryCommand::Get {
+                        key,
+                        files,
+                        null_separated,
+                    } => {
+                        entry::get(&cache_file, key, files, *null_separated)?;
+                        Ok(true)
+                    }
+                    cli::CacheEntryCommand::Rm { key, files } => {
+                        entry::rm(&cache_file, key, files)?;
+                        Ok(true)
+                    }
+                }
             }
         },
         cli::Command::Run(run) => {
