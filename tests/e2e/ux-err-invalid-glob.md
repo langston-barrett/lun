@@ -19,8 +19,7 @@ files = ["[invalid"]
 run
 ```
 
-TODO(#80): Fix lack of newline
-
 ```
-[0/?] Collecting filesInvalid `files` glob `[invalid` for `echo`
+[0/?] Collecting files
+Invalid `files` glob `[invalid` for `echo`
 ```
