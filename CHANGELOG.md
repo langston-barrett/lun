@@ -2,6 +2,15 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## [0.7.0] - 2026-01-19
+
+[0.7.0]: https://github.com/langston-barrett/lun/releases/tag/v0.7.0
+
+- Ignore image files by default (see `no_default_ignores` to override this)
+- `lun init` now uses `[[tool]]`
+- Fix two newline-related bugs in command-line output
+- Fix a bug where setting `configs = []` in a `[[tool]]` was ignored
+
 ## [0.6.0] - 2025-12-20
 
 [0.6.0]: https://github.com/langston-barrett/lun/releases/tag/v0.6.0
