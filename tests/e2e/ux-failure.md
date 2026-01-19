@@ -20,10 +20,8 @@ run
 ```
 
 ```
-
 [0/?] Collecting files
 [1/1] false lun.toml
 Command failed:
 false lun.toml
-
 ```

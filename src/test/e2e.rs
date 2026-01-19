@@ -178,7 +178,7 @@ fn run_test(test_path: &Path) -> Result<()> {
     };
 
     // Normalize outputs for comparison (trim whitespace, normalize line endings)
-    let expected_normalized = test_case.expected_output.trim();
+    let expected_normalized = test_case.expected_output;
     let actual_normalized = actual_output.trim();
 
     // Check UPDATE_EXPECT
