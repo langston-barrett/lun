@@ -53,22 +53,13 @@ fn collect_files(
     cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
     let cache_dir = cwd.join(&cli.cache);
-    let result = {
-        let mut files = if run.staged {
-            staged::collect_staged_files()?
-        } else {
-            file::collect_files(cwd, &cache_dir, progress_format, out)?
-        };
-        filter_files(&mut files, &run.only_files, &run.skip_files)?;
-        Ok(files)
+    let mut files = if run.staged {
+        staged::collect_staged_files()?
+    } else {
+        file::collect_files(cwd, &cache_dir, progress_format, out)?
     };
-    match result {
-        r @ Ok(_) => r,
-        e @ Err(_) => {
-            drop(out.write(b"\n"));
-            e
-        }
-    }
+    filter_files(&mut files, &run.only_files, &run.skip_files)?;
+    Ok(files)
 }
 
 fn only_matchers(only_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
@@ -213,18 +204,28 @@ fn mk_config(
     };
     let mtime = config.mtime && !run.no_mtime;
     let cache_dir = cwd.join(&cli.cache);
+    let files = collect_files(cli, run, show_progress, out, cwd)?;
+    // After collect_files succeeds, the progress line has been written.
+    // If anything fails from here, we need to print a newline first.
+    let tools = match filter_tools(run, config, mode, cli.log.color) {
+        Ok(t) => t,
+        Err(e) => {
+            drop(out.write(b"\n"));
+            return Err(e);
+        }
+    };
     Ok(Config {
         refs,
         cache: cache_dir,
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
-        files: collect_files(cli, run, show_progress, out, cwd)?,
+        files,
         mtime,
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
         no_capture: run.no_capture,
         no_cache: run.no_cache || run.fresh,
-        tools: filter_tools(run, config, mode, cli.log.color)?,
+        tools,
         show_progress,
         keep_going: run.keep_going,
         then: run.then.clone(),
