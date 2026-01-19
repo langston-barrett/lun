@@ -175,9 +175,10 @@ pub(crate) struct Formatter {
     pub(crate) check: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct KnownTool {
+    #[serde(default)]
     pub(crate) name: String,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]

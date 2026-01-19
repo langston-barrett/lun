@@ -55,3 +55,62 @@ Each formatter is defined in a `[[formatter]]` table array.
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect formatter behavior. Changes to these files invalidate the cache.
 - `cd` (string, optional): Working directory for the formatter.
 - `check` (string, optional): Command to run in check-only mode (no modifications). If not specified, uses `cmd`.
+
+## `[[tool]]`
+
+The `[[tool]]` table array provides a shorthand for configuring known tools.
+Instead of specifying all fields manually, you can reference a tool by name and
+optionally override specific fields.
+
+```toml
+[[tool]]
+name = "cargo clippy"
+```
+
+This is equivalent to writing out the full `[[linter]]` configuration for `cargo
+clippy` with all its default settings.
+
+You can override specific fields while keeping the defaults for everything else:
+
+```toml
+[[tool]]
+name = "cargo clippy"
+ignore = ["generated/*.rs"]
+configs = ["Cargo.toml", "clippy.toml"]
+```
+
+Available fields (all optional except `name`):
+
+- `name` (string, required): Name of the known tool (e.g., `"cargo clippy"`, `"ruff check"`, `"cargo fmt"`).
+- `cmd` (string, optional): Override the command to run.
+- `files` (array of strings, optional): Override the file patterns.
+- `ignore` (array of strings, optional): Override the ignore patterns.
+- `granularity` (string, optional): Override the granularity (`"individual"` or `"batch"`).
+- `configs` (array of strings, optional): Override the configuration file paths.
+- `cd` (string, optional): Override the working directory.
+- `fix` (string, optional): Override the fix command (for linters).
+- `check` (string, optional): Override the check command (for formatters).
+
+### Known tools
+
+The following tools are recognized by name:
+
+**Linters:**
+
+- `cargo clippy`
+- `hlint`
+- `mdlynx`
+- `mypy`
+- `ruff check`
+- `shellcheck`
+- `tagref`
+- `ttlint`
+- `ty`
+- `typos`
+- `zizmor`
+
+**Formatters:**
+
+- `cargo fmt`
+- `ruff format`
+- `taplo`

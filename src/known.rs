@@ -225,3 +225,35 @@ pub(crate) fn known_formatter_by_name(name: &str) -> Option<config::Formatter> {
         .into_iter()
         .find(|f| f.tool.name.as_deref() == Some(name))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_md_lists_all_known_tools() {
+        let config_md = std::fs::read_to_string("doc/config.md").unwrap();
+
+        // Collect all known linter names
+        for linter in known_linters() {
+            if let Some(name) = &linter.tool.name {
+                let expected = format!("- `{name}`");
+                assert!(
+                    config_md.lines().any(|line| line.trim() == expected),
+                    "doc/config.md is missing linter: {name}"
+                );
+            }
+        }
+
+        // Collect all known formatter names
+        for formatter in known_formatters() {
+            if let Some(name) = &formatter.tool.name {
+                let expected = format!("- `{name}`");
+                assert!(
+                    config_md.lines().any(|line| line.trim() == expected),
+                    "doc/config.md is missing formatter: {name}"
+                );
+            }
+        }
+    }
+}
