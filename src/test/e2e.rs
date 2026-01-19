@@ -150,6 +150,10 @@ fn run_test(test_path: &Path) -> Result<()> {
     cli_args.push("--cache".to_string());
     cli_args.push(temp_path.join(".lun").to_string_lossy().to_string());
     cli_args.extend(test_case.args.clone());
+    if test_case.args.starts_with(&["run".to_string()]) {
+        cli_args.push("--jobs".to_string());
+        cli_args.push("1".to_string());
+    }
     let cli = crate::cli::Cli::try_parse_from(&cli_args)
         .map_err(|e| anyhow::anyhow!("Failed to parse CLI: {e}"))?;
 

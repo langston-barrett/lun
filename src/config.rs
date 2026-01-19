@@ -214,8 +214,8 @@ pub(crate) struct KnownTool {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) granularity: Option<Granularity>,
     #[serde(default)]
-    #[serde(skip_serializing_if = "default")]
-    pub(crate) configs: Vec<PathBuf>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) configs: Option<Vec<PathBuf>>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) cd: Option<PathBuf>,
@@ -241,8 +241,8 @@ impl KnownTool {
         if let Some(granularity) = self.granularity {
             linter.tool.granularity = granularity;
         }
-        if !self.configs.is_empty() {
-            linter.tool.configs.clone_from(&self.configs);
+        if let Some(ref configs) = self.configs {
+            linter.tool.configs.clone_from(configs);
         }
         if let Some(ref cd) = self.cd {
             linter.tool.cd = Some(cd.clone());
@@ -265,8 +265,8 @@ impl KnownTool {
         if let Some(granularity) = self.granularity {
             formatter.tool.granularity = granularity;
         }
-        if !self.configs.is_empty() {
-            formatter.tool.configs.clone_from(&self.configs);
+        if let Some(ref configs) = self.configs {
+            formatter.tool.configs.clone_from(configs);
         }
         if let Some(ref cd) = self.cd {
             formatter.tool.cd = Some(cd.clone());

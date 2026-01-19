@@ -1,0 +1,32 @@
+# cargo run -- init -r origin/main -t 'cargo clippy' -t 'cargo fmt' -t mdlynx -t shellcheck -t tagref -t ttlint -t typos -t zizmor
+
+refs = ["origin/main"]
+
+[[tool]]
+name = "cargo clippy"
+configs = ["Cargo.toml"]
+
+[[tool]]
+name = "cargo fmt"
+configs = ["Cargo.toml"]
+
+[[tool]]
+name = "mdlynx"
+
+[[tool]]
+name = "shellcheck"
+configs = []
+
+[[tool]]
+name = "tagref"
+
+[[tool]]
+name = "ttlint"
+
+[[tool]]
+name = "typos"
+configs = []
+
+[[tool]]
+name = "zizmor"
+configs = []
