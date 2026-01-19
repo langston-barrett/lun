@@ -153,16 +153,44 @@ fn run_test(test_path: &Path) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to parse CLI: {e}"))?;
 
     let config_path = temp_path.join("lun.toml");
-    let config_contents = fs::read_to_string(&config_path)
-        .with_context(|| format!("Failed to read config: {}", config_path.display()))?;
-    let config: crate::config::Config = toml::from_str(&config_contents)
-        .with_context(|| format!("Failed to parse config: {}", config_path.display()))?;
+    let temp_path_str = temp_path.to_string_lossy();
+    let config = match crate::config::Config::load(&config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            // Config loading failed - treat this as the error output
+            let actual_output = format!("{e}").replace(temp_path_str.as_ref(), "<TEMP>");
+            let expected_normalized = &test_case.expected_output;
+            let actual_normalized = actual_output.trim();
+
+            if env::var("UPDATE_EXPECT").is_ok() {
+                if expected_normalized != actual_normalized {
+                    update_expected_output(
+                        test_path,
+                        test_case.expected_output_line,
+                        &actual_output,
+                    )?;
+                    println!("Updated expected output in {}", test_path.display());
+                }
+                return Ok(());
+            }
+
+            if expected_normalized != actual_normalized {
+                anyhow::bail!(
+                    "Output mismatch in {}:\n\nExpected:\n{}\n\nActual:\n{}\n",
+                    test_path.display(),
+                    expected_normalized,
+                    actual_normalized
+                );
+            }
+            return Ok(());
+        }
+    };
 
     // Capture output
     let mut output_buffer: Vec<u8> = Vec::new();
 
     // Run with the temp directory as working directory
-    let result = crate::go(cli, Some(config), &mut output_buffer, temp_path);
+    let result = crate::go(cli, config, &mut output_buffer, temp_path);
 
     // Get captured output and normalize escape sequences
     let captured = {
@@ -177,14 +205,20 @@ fn run_test(test_path: &Path) -> Result<()> {
         Err(e) => format!("{captured}{e}").trim().to_string(),
     };
 
-    // Normalize outputs for comparison (trim whitespace, normalize line endings)
-    let expected_normalized = test_case.expected_output;
-    let actual_normalized = actual_output.trim();
+    // Normalize outputs for comparison (trim whitespace, normalize line endings, replace temp paths)
+    let expected_normalized = &test_case.expected_output;
+    let actual_normalized = actual_output
+        .trim()
+        .replace(temp_path_str.as_ref(), "<TEMP>");
+    let actual_normalized = actual_normalized.trim();
 
     // Check UPDATE_EXPECT
     if env::var("UPDATE_EXPECT").is_ok() {
         if expected_normalized != actual_normalized {
-            update_expected_output(test_path, test_case.expected_output_line, &actual_output)?;
+            let output_for_file = actual_output
+                .trim()
+                .replace(temp_path_str.as_ref(), "<TEMP>");
+            update_expected_output(test_path, test_case.expected_output_line, &output_for_file)?;
             println!("Updated expected output in {}", test_path.display());
         }
         return Ok(());
@@ -243,4 +277,39 @@ fn ux_failure() {
 #[test]
 fn ux_success() {
     test_file("ux-success");
+}
+
+#[test]
+fn ux_err_missing_config() {
+    test_file("ux-err-missing-config");
+}
+
+#[test]
+fn ux_err_invalid_toml() {
+    test_file("ux-err-invalid-toml");
+}
+
+#[test]
+fn ux_err_invalid_glob() {
+    test_file("ux-err-invalid-glob");
+}
+
+#[test]
+fn ux_err_unknown_tool_config() {
+    test_file("ux-err-unknown-tool-config");
+}
+
+#[test]
+fn ux_err_deny_unknown_tool() {
+    test_file("ux-err-deny-unknown-tool");
+}
+
+#[test]
+fn ux_err_multiple_failures() {
+    test_file("ux-err-multiple-failures");
+}
+
+#[test]
+fn ux_noop() {
+    test_file("ux-noop");
 }

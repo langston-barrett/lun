@@ -82,7 +82,8 @@ pub(crate) fn go(
             }
         },
         cli::Command::Run(run) => {
-            let config = config.ok_or_else(|| anyhow::anyhow!("Config file not found"))?;
+            let config = config
+                .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
             run::go(&cli, run, &config, &lints, out, cwd).map(bool::from)
         }
         cli::Command::Init(init) => {
