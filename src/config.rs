@@ -109,7 +109,7 @@ impl Config {
         Ok(Some(config))
     }
 
-    fn known_tools(&mut self) -> Result<()> {
+    pub(crate) fn known_tools(&mut self) -> Result<()> {
         for known_tool in &self.tool {
             if let Some(mut linter) = known::known_linter_by_name(&known_tool.name) {
                 known_tool.merge_into_linter(&mut linter)?;
