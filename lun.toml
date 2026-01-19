@@ -9,6 +9,8 @@ configs = ["Cargo.toml"]
 [[tool]]
 name = "cargo fmt"
 configs = ["Cargo.toml"]
+# TODO: Remove this after 0.7.1 is released
+check = "cargo fmt -- --check --color={{color}} --"
 
 [[tool]]
 name = "mdlynx"

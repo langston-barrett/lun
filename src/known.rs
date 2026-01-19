@@ -168,7 +168,7 @@ pub(crate) fn known_formatters() -> Vec<config::Formatter> {
                 ],
                 cd: None,
             },
-            check: Some("cargo fmt --check -- --color={{color}} --".to_string()),
+            check: Some("cargo fmt -- --check --color={{color}} --".to_string()),
         },
         config::Formatter {
             tool: config::Tool {
