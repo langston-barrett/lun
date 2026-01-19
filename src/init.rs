@@ -13,6 +13,11 @@ fn get_known_tools(names: &[String]) -> Result<Vec<config::KnownTool>> {
         if let Some(linter) = known::known_linter_by_name(n) {
             let mut configs = linter.tool.configs;
             configs.retain(|config| config.exists());
+            let configs = if configs.is_empty() {
+                None
+            } else {
+                Some(configs)
+            };
             tools.push(config::KnownTool {
                 name: n.clone(),
                 configs,
@@ -21,6 +26,11 @@ fn get_known_tools(names: &[String]) -> Result<Vec<config::KnownTool>> {
         } else if let Some(formatter) = known::known_formatter_by_name(n) {
             let mut configs = formatter.tool.configs;
             configs.retain(|config| config.exists());
+            let configs = if configs.is_empty() {
+                None
+            } else {
+                Some(configs)
+            };
             tools.push(config::KnownTool {
                 name: n.clone(),
                 configs,
@@ -45,7 +55,7 @@ fn collect_tools(tool_names: &[String]) -> Result<Vec<config::KnownTool>> {
             if !configs.is_empty() {
                 tools.push(config::KnownTool {
                     name,
-                    configs,
+                    configs: Some(configs),
                     ..Default::default()
                 });
             }
@@ -59,7 +69,7 @@ fn collect_tools(tool_names: &[String]) -> Result<Vec<config::KnownTool>> {
             if !configs.is_empty() {
                 tools.push(config::KnownTool {
                     name,
-                    configs,
+                    configs: Some(configs),
                     ..Default::default()
                 });
             }

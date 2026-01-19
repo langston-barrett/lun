@@ -43,6 +43,7 @@ Command failed:
 false <TEMP>/file.a
 
 
+[2/2]
 [2/2] false <TEMP>/file.b
 Command failed:
 false <TEMP>/file.b

@@ -25,3 +25,4 @@ jobs:
       # for the others.
       pre-test-hook: |
         cargo run -- -v run --only-tool='cargo clippy' --only-tool='cargo fmt' --only-tool='shellcheck'
+        cargo run -- -v -c lun-next.toml run --only-tool='cargo clippy' --only-tool='cargo fmt' --only-tool='shellcheck'
