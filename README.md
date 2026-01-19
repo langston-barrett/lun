@@ -1,7 +1,6 @@
 # Lūn
 
-Lūn runs linters and formatters. Lūn is so fast that you can use it lint and
-format on every keypress instead of just in a pre-commit hook or in CI.
+Lūn runs linters and formatters quickly.
 
 ## How to use it
 

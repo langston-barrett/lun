@@ -7,42 +7,66 @@ use crate::cli::Init;
 use crate::config::{self, Config};
 use crate::known;
 
-fn get_known_tools(names: &[String]) -> Result<(Vec<config::Linter>, Vec<config::Formatter>)> {
-    let mut linters = Vec::new();
-    let mut formatters = Vec::new();
+fn get_known_tools(names: &[String]) -> Result<Vec<config::KnownTool>> {
+    let mut tools = Vec::new();
     for n in names {
-        if let Some(mut linter) = known::known_linter_by_name(n) {
-            linter.tool.configs.retain(|config| config.exists());
-            linters.push(linter);
-        } else if let Some(mut formatter) = known::known_formatter_by_name(n) {
-            formatter.tool.configs.retain(|config| config.exists());
-            formatters.push(formatter);
+        if let Some(linter) = known::known_linter_by_name(n) {
+            let mut configs = linter.tool.configs;
+            configs.retain(|config| config.exists());
+            tools.push(config::KnownTool {
+                name: n.clone(),
+                configs,
+                ..Default::default()
+            });
+        } else if let Some(formatter) = known::known_formatter_by_name(n) {
+            let mut configs = formatter.tool.configs;
+            configs.retain(|config| config.exists());
+            tools.push(config::KnownTool {
+                name: n.clone(),
+                configs,
+                ..Default::default()
+            });
         } else {
             anyhow::bail!("Unknown tool: {n}");
         }
     }
-    Ok((linters, formatters))
+    Ok(tools)
 }
 
-fn collect_tools(linters: &[String]) -> Result<(Vec<config::Linter>, Vec<config::Formatter>)> {
-    if linters.is_empty() {
-        let mut detected_linters = Vec::new();
-        let mut detected_formatters = Vec::new();
-        for mut linter in known::known_linters() {
-            linter.tool.configs.retain(|config| config.exists());
-            if !linter.tool.configs.is_empty() {
-                detected_linters.push(linter);
+fn collect_tools(tool_names: &[String]) -> Result<Vec<config::KnownTool>> {
+    if tool_names.is_empty() {
+        let mut tools = Vec::new();
+        for linter in known::known_linters() {
+            let Some(name) = linter.tool.name else {
+                continue;
+            };
+            let mut configs = linter.tool.configs;
+            configs.retain(|config| config.exists());
+            if !configs.is_empty() {
+                tools.push(config::KnownTool {
+                    name,
+                    configs,
+                    ..Default::default()
+                });
             }
         }
-        for mut formatter in known::known_formatters() {
-            formatter.tool.configs.retain(|config| config.exists());
-            if !formatter.tool.configs.is_empty() {
-                detected_formatters.push(formatter);
+        for formatter in known::known_formatters() {
+            let Some(name) = formatter.tool.name else {
+                continue;
+            };
+            let mut configs = formatter.tool.configs;
+            configs.retain(|config| config.exists());
+            if !configs.is_empty() {
+                tools.push(config::KnownTool {
+                    name,
+                    configs,
+                    ..Default::default()
+                });
             }
         }
-        Ok((detected_linters, detected_formatters))
+        Ok(tools)
     } else {
-        get_known_tools(linters)
+        get_known_tools(tool_names)
     }
 }
 
@@ -50,10 +74,10 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
     let mut names = HashSet::new();
     let mut tool_names = init.tool.clone();
     tool_names.retain(|l| names.insert(l.clone()));
-    let (linter, formatter) = collect_tools(&tool_names)?;
+    let tool = collect_tools(&tool_names)?;
     let config = Config {
-        linter,
-        formatter,
+        linter: Vec::new(),
+        formatter: Vec::new(),
         refs: init.r#ref.clone(),
         careful: init.careful,
         cores: init.cores,
@@ -61,7 +85,7 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
         ninja: None,
         ignore: Vec::new(),
         cache_size: None,
-        tool: Vec::new(),
+        tool,
         warns: config::WarnCfg {
             allow: init.allow.clone(),
             warn: init.warn.clone(),
@@ -101,19 +125,12 @@ mod tests {
         let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
-            [[linter]]
+            [[tool]]
             name = "cargo clippy"
-            cmd = "cargo clippy --color={{color}} --all-targets -- --deny warnings"
-            files = ["*.rs"]
-            granularity = "batch"
             configs = ["Cargo.toml"]
-            fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
-            [[linter]]
+            [[tool]]
             name = "ruff check"
-            cmd = "ruff check --"
-            files = ["*.py"]
-            fix = "ruff check --fix --"
         "#]]
         .assert_eq(&toml);
     }
@@ -133,21 +150,13 @@ mod tests {
         let config = gen_config(&init).unwrap();
         let toml = toml::to_string_pretty(&config).unwrap();
         expect![[r#"
-            [[linter]]
+            [[tool]]
             name = "cargo clippy"
-            cmd = "cargo clippy --color={{color}} --all-targets -- --deny warnings"
-            files = ["*.rs"]
-            granularity = "batch"
             configs = ["Cargo.toml"]
-            fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
-            [[formatter]]
+            [[tool]]
             name = "cargo fmt"
-            cmd = "cargo fmt -- --color={{color}} --"
-            files = ["*.rs"]
-            granularity = "batch"
             configs = ["Cargo.toml"]
-            check = "cargo fmt --check -- --color={{color}} --"
         "#]]
         .assert_eq(&toml);
     }
