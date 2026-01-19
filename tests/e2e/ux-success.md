@@ -21,6 +21,6 @@ run
 
 ```
 [0/?] Collecting files
-[1/1] echo lun.toml
+[1/1] echo <TEMP>/lun.toml
 [1/1] 1 file linted
 ```

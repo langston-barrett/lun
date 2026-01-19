@@ -21,6 +21,6 @@ run
 
 ```
 [0/?] Collecting files
-[1/1] bogus lun.toml
-Failed to execute command: bogus lun.toml
+[1/1] bogus <TEMP>/lun.toml
+Failed to execute command: bogus <TEMP>/lun.toml
 ```
