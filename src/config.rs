@@ -41,6 +41,11 @@ pub(crate) struct WarnCfg {
     pub(crate) deny: Vec<String>,
 }
 
+/// Default ignore patterns for image files
+pub(crate) const DEFAULT_IGNORES: &[&str] = &[
+    "*.jpg", "*.jpeg", "*.JPG", "*.JPEG", "*.png", "*.PNG", "*.svg", "*.SVG",
+];
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Config {
@@ -75,6 +80,10 @@ pub(crate) struct Config {
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) ninja: Option<bool>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) no_default_ignores: bool,
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
@@ -122,6 +131,18 @@ impl Config {
             }
         }
         Ok(())
+    }
+
+    /// Returns the effective ignore patterns, combining default ignores with user ignores.
+    pub(crate) fn effective_ignore(&self) -> Vec<String> {
+        if self.no_default_ignores {
+            self.ignore.clone()
+        } else {
+            let mut ignores: Vec<String> =
+                DEFAULT_IGNORES.iter().map(|s| (*s).to_string()).collect();
+            ignores.extend(self.ignore.clone());
+            ignores
+        }
     }
 }
 

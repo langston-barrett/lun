@@ -11,8 +11,9 @@ The configuration file (`lun.toml` by default) is written in [TOML].
 - `cores` (integer, optional): Number of parallel jobs to run. If not specified, uses the number of CPU cores.
 - `mtime` (boolean, default: `true`): Use file modification times (see [Caching](cache.md)).
 - `ninja` (boolean, default: `false`): Enable or disable Ninja build file generation.
+- `no_default_ignores` (boolean, default: `false`): Disable default ignore patterns for image files (JPG, JPEG, PNG, SVG).
 - `refs` (array of strings, default: `[]`): Git refs to compare against when determining which files to check.
-- `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that all tools should ignore.
+- `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that all tools should ignore. These patterns are combined with the default ignore patterns unless `no_default_ignores` is set.
 - `linter` (array of tables): Array of linter configurations, see below.
 - `formatter` (array of tables): Array of formatter configurations, see below.
 
