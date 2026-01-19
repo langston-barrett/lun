@@ -53,13 +53,22 @@ fn collect_files(
     cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
     let cache_dir = cwd.join(&cli.cache);
-    let mut files = if run.staged {
-        staged::collect_staged_files()?
-    } else {
-        file::collect_files(cwd, &cache_dir, progress_format, out)?
+    let result = {
+        let mut files = if run.staged {
+            staged::collect_staged_files()?
+        } else {
+            file::collect_files(cwd, &cache_dir, progress_format, out)?
+        };
+        filter_files(&mut files, &run.only_files, &run.skip_files)?;
+        Ok(files)
     };
-    filter_files(&mut files, &run.only_files, &run.skip_files)?;
-    Ok(files)
+    match result {
+        r @ Ok(_) => r,
+        e @ Err(_) => {
+            drop(out.write(b"\n"));
+            e
+        }
+    }
 }
 
 fn only_matchers(only_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
