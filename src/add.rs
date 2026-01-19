@@ -19,7 +19,7 @@ fn gen_tool(options: &cli::Add) -> Result<String, anyhow::Error> {
             formatter.tool.name = Some(name.clone());
         }
         if let Some(cmd) = &options.cmd {
-            formatter.tool.cmd = cmd.clone();
+            formatter.tool.cmd.clone_from(cmd);
         }
         if let Some(files) = &options.files {
             formatter.tool.files = vec![files.clone()];
@@ -40,7 +40,7 @@ fn gen_tool(options: &cli::Add) -> Result<String, anyhow::Error> {
             linter.tool.name = Some(name.clone());
         }
         if let Some(cmd) = &options.cmd {
-            linter.tool.cmd = cmd.clone();
+            linter.tool.cmd.clone_from(cmd);
         }
         if let Some(files) = &options.files {
             linter.tool.files = vec![files.clone()];

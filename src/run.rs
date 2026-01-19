@@ -272,10 +272,10 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         config.cores,
         config.no_batch,
         config.mtime,
-    )?;
+    );
     if !config.no_cache {
         cache.flush()?;
-    };
+    }
     let no_jobs = jobs.is_empty();
     let n_jobs = jobs.len();
     let files_linted = jobs
@@ -356,7 +356,7 @@ fn then_else(config: &Config, result: &RunResult) -> Result<(), anyhow::Error> {
         if !status.success() {
             return Ok(());
         }
-    };
+    }
     Ok(())
 }
 

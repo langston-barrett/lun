@@ -76,7 +76,7 @@ const RECORD_SIZE: usize = size_of::<u16>() + size_of::<KeyHash>(); // 2 bytes (
 pub(crate) const DEFAULT_MAX_CACHE_SIZE_BYTES: usize = (2 << 17) * RECORD_SIZE;
 
 /// Calculate the maximum number of cache entries from a byte size.
-/// Rounds down to the next lowest multiple of RECORD_SIZE.
+/// Rounds down to the next lowest multiple of `RECORD_SIZE`.
 pub(crate) fn max_entries_from_bytes(bytes: usize) -> usize {
     bytes / RECORD_SIZE
 }

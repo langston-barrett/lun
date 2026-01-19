@@ -126,7 +126,7 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
         }
     }
 
-    let cli = cli::Cli::try_parse_from(args.iter().map(|s| s.as_str()))
+    let cli = cli::Cli::try_parse_from(args.iter().map(String::as_str))
         .map_err(|e| e.to_string())
         .unwrap();
     if let cli::Command::Run(run) = cli.command {
@@ -136,7 +136,7 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
 }
 
 fn process_files_section_line(scenario: &mut TestScenario, line: &str) {
-    if line.starts_with("- `") && line.contains(":") {
+    if line.starts_with("- `") && line.contains(':') {
         // Parse file entry like: - `file.py`: 100b
         let file_part = line
             .strip_prefix("- `")
@@ -358,8 +358,7 @@ fn test(path: &'static str) {
                 )
                 .collect::<Result<Vec<_>>>()
                 .unwrap();
-        let batches =
-            plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch, false).unwrap();
+        let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch, false);
         let out = jobs_to_string(&batches);
         assert_eq!(
             out,
