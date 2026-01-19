@@ -132,6 +132,7 @@ fn filter_tools(
     color: cli::log::Color,
 ) -> Result<Vec<tool::Tool>> {
     let careful = run.careful || config.careful;
+    let effective_ignore = config.effective_ignore();
     let mut tools = Vec::new();
 
     if !run.format {
@@ -140,7 +141,7 @@ fn filter_tools(
                 tools.push(
                     linter
                         .clone()
-                        .into_tool(mode, careful, color, &config.ignore)?,
+                        .into_tool(mode, careful, color, &effective_ignore)?,
                 );
             }
         }
@@ -151,7 +152,7 @@ fn filter_tools(
             tools.push(
                 formatter
                     .clone()
-                    .into_tool(mode, careful, color, &config.ignore)?,
+                    .into_tool(mode, careful, color, &effective_ignore)?,
             );
         }
     }

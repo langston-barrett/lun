@@ -83,6 +83,7 @@ pub(crate) fn gen_config(init: &Init) -> Result<Config, anyhow::Error> {
         cores: init.cores,
         mtime: !init.no_mtime,
         ninja: None,
+        no_default_ignores: false,
         ignore: Vec::new(),
         cache_size: None,
         tool,

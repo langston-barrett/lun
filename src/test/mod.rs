@@ -216,6 +216,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                     cores: None,
                     mtime: true,
                     ninja: None,
+                    no_default_ignores: false,
                     ignore: Vec::new(),
                     cache_size: None,
                     tool: Vec::new(),
@@ -344,20 +345,23 @@ fn test(path: &'static str) {
             .cores
             .unwrap_or(const { NonZeroUsize::new(1).unwrap() });
         let run_mode = run::RunMode::from(run);
-        let tool =
-            scenario
-                .config
-                .linter
-                .iter()
-                .cloned()
-                .map(|t| t.into_tool(run_mode, false, scenario.color, &scenario.config.ignore))
-                .chain(
-                    scenario.config.formatter.iter().cloned().map(|t| {
-                        t.into_tool(run_mode, false, scenario.color, &scenario.config.ignore)
-                    }),
-                )
-                .collect::<Result<Vec<_>>>()
-                .unwrap();
+        let effective_ignore = scenario.config.effective_ignore();
+        let tool = scenario
+            .config
+            .linter
+            .iter()
+            .cloned()
+            .map(|t| t.into_tool(run_mode, false, scenario.color, &effective_ignore))
+            .chain(
+                scenario
+                    .config
+                    .formatter
+                    .iter()
+                    .cloned()
+                    .map(|t| t.into_tool(run_mode, false, scenario.color, &effective_ignore)),
+            )
+            .collect::<Result<Vec<_>>>()
+            .unwrap();
         let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch, false);
         let out = jobs_to_string(&batches);
         assert_eq!(
@@ -420,6 +424,7 @@ fn parse_test_file_debug() {
                     ignore: [],
                     mtime: true,
                     ninja: None,
+                    no_default_ignores: false,
                     refs: [],
                     tool: [],
                     warns: WarnCfg {
@@ -467,6 +472,7 @@ fn parse_test_file_debug() {
                     ignore: [],
                     mtime: true,
                     ninja: None,
+                    no_default_ignores: false,
                     refs: [],
                     tool: [],
                     warns: WarnCfg {
@@ -546,6 +552,11 @@ fn format() {
 #[test]
 fn no_batch() {
     test("tests/no-batch.md");
+}
+
+#[test]
+fn no_default_ignores() {
+    test("tests/no-default-ignores.md");
 }
 
 #[test]
