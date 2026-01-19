@@ -19,6 +19,12 @@ configs = []
 
 - `file.sh`: 10b
 
+### Flags
+
+```
+--color never run
+```
+
 ### Output
 
 ```sh
@@ -42,6 +48,12 @@ configs = []
 
 - `file.bash`: 20b
 - `file.sh`: 20b
+
+### Flags
+
+```
+--color never run
+```
 
 ### Output
 
