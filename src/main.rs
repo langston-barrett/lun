@@ -27,6 +27,8 @@ mod test;
 
 use anyhow::Result;
 use clap::Parser as _;
+use std::io::{self, Write};
+use std::path::Path;
 use std::process;
 use tracing::trace;
 
@@ -34,7 +36,12 @@ use tracing::trace;
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> {
+pub(crate) fn go(
+    cli: cli::Cli,
+    config: Option<config::Config>,
+    out: &mut (impl Write + Send),
+    cwd: &Path,
+) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
     match &cli.command {
         cli::Command::Cache(cache_cmd) => match &cache_cmd.command {
@@ -76,7 +83,7 @@ pub(crate) fn go(cli: cli::Cli, config: Option<config::Config>) -> Result<bool> 
         },
         cli::Command::Run(run) => {
             let config = config.ok_or_else(|| anyhow::anyhow!("Config file not found"))?;
-            run::go(&cli, run, &config, &lints).map(bool::from)
+            run::go(&cli, run, &config, &lints, out, cwd).map(bool::from)
         }
         cli::Command::Init(init) => {
             init::go(&cli.config, init)?;
@@ -102,7 +109,7 @@ fn main() -> Result<()> {
     trace!(?cli);
     let config = config::Config::load(&cli.config)?;
     trace!(?config);
-    let ok = go(cli, config)?;
+    let ok = go(cli, config, &mut io::stderr(), Path::new("."))?;
     if !ok {
         process::exit(1);
     }
