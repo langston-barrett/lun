@@ -1,11 +1,11 @@
 use std::collections::HashSet;
-use std::io::Write as _;
+use std::io::Write;
 use std::num::NonZeroUsize;
 use std::os::unix::process::ExitStatusExt as _;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
-use std::{cmp, io, process, thread};
+use std::{cmp, process, thread};
 
 use anyhow::{Context, Result};
 use rayon::prelude::*;
@@ -19,6 +19,7 @@ use crate::{cache, cmd};
 enum ReporterEvent {
     Start { cmd: String },
     Done { cmd: String },
+    Failed { output: Vec<u8> },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -37,6 +38,7 @@ pub(crate) fn exec(
     format: ProgressFormat,
     keep_going: bool,
     mtime_enabled: bool,
+    out: &mut (impl Write + Send),
 ) -> Result<bool> {
     if batches.is_empty() {
         return Ok(true);
@@ -50,59 +52,66 @@ pub(crate) fn exec(
         .context("Failed to create rayon thread pool")?;
 
     let (tx, rx) = mpsc::channel::<ReporterEvent>();
-    let reporter_handle = thread::spawn(move || reporter(num_threads, n_batches, rx, format));
 
     let failed = AtomicBool::new(false);
 
-    let (ok, all_hashes) = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
-        let tx = tx.clone();
-        let results = batches
-            .into_par_iter()
-            .map(|cmd| -> Result<(bool, Vec<cache::KeyHash>)> {
-                if !keep_going && failed.load(Ordering::Relaxed) {
-                    return Ok((false, Vec::new()));
-                }
+    let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
+        s.spawn(|| reporter(num_threads, n_batches, rx, format, out));
 
-                let c = cmd.to_command();
-                let cmd_str = job::display_cmd(&c);
-                debug!("{}: running", cmd_str);
-                tx.send(ReporterEvent::Start {
-                    cmd: cmd_str.clone(),
+        let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
+            let tx = tx.clone();
+            let results = batches
+                .into_par_iter()
+                .map(|cmd| -> Result<(bool, Vec<cache::KeyHash>)> {
+                    if !keep_going && failed.load(Ordering::Relaxed) {
+                        return Ok((false, Vec::new()));
+                    }
+
+                    let c = cmd.to_command();
+                    let cmd_str = job::display_cmd(&c);
+                    debug!("{}: running", cmd_str);
+                    tx.send(ReporterEvent::Start {
+                        cmd: cmd_str.clone(),
+                    })
+                    .ok();
+                    let result = run(c, &cmd_str, no_capture)?;
+                    let success = result.status.success();
+
+                    if !success {
+                        failed.store(true, Ordering::Relaxed);
+                        if let Some(output) = result.failure_output {
+                            tx.send(ReporterEvent::Failed { output }).ok();
+                        }
+                    }
+                    debug!(
+                        "{}: {}",
+                        cmd_str,
+                        if success { "success" } else { "failed" },
+                    );
+                    tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
+                    let hashes = if success {
+                        done(cmd, mtime_enabled)?
+                    } else {
+                        Vec::new()
+                    };
+                    Ok((success, hashes))
                 })
-                .ok();
-                let success = run(c, &cmd_str, no_capture)?.success();
+                .collect::<Result<Vec<_>>>()?;
 
-                if !success {
-                    failed.store(true, Ordering::Relaxed);
-                }
-                debug!(
-                    "{}: {}",
-                    cmd_str,
-                    if success { "success" } else { "failed" },
-                );
-                tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
-                let hashes = if success {
-                    done(cmd, mtime_enabled)?
-                } else {
-                    Vec::new()
-                };
-                Ok((success, hashes))
-            })
-            .collect::<Result<Vec<_>>>()?;
+            let mut ok = true;
+            let mut all_hashes = Vec::with_capacity(results.len());
+            for (b, hashes) in results {
+                ok &= b;
+                all_hashes.extend(hashes.into_iter());
+            }
+            Ok((ok, all_hashes))
+        });
 
-        let mut ok = true;
-        let mut all_hashes = Vec::with_capacity(results.len());
-        for (b, hashes) in results {
-            ok &= b;
-            all_hashes.extend(hashes.into_iter());
-        }
-        Ok((ok, all_hashes))
+        // Close the channel to signal the reporter thread to finish
+        drop(tx);
+        // Reporter thread joins automatically when scope ends
+        result
     })?;
-
-    // Close the channel to signal the reporter thread to finish
-    drop(tx);
-    #[allow(clippy::expect_used)]
-    reporter_handle.join().expect("Reporter thread panicked");
 
     for hash in all_hashes {
         cache_writer.done_hash(hash);
@@ -116,6 +125,7 @@ fn reporter(
     n_batches: usize,
     rx: mpsc::Receiver<ReporterEvent>,
     format: ProgressFormat,
+    out: &mut (impl Write + Send),
 ) {
     let mut running = HashSet::with_capacity(n_threads);
     let mut completed = 0;
@@ -127,9 +137,12 @@ fn reporter(
             Ok(ReporterEvent::Start { cmd }) => {
                 running.insert(cmd.clone());
                 if current_cmd.is_none() {
-                    report(format, completed + 1, total, &cmd);
+                    report(format, completed + 1, total, &cmd, out);
                     current_cmd = Some(cmd);
                 }
+            }
+            Ok(ReporterEvent::Failed { output }) => {
+                drop(out.write_all(&output));
             }
             Ok(ReporterEvent::Done { cmd }) => {
                 running.remove(&cmd);
@@ -140,9 +153,9 @@ fn reporter(
                 }
 
                 if let Some(current) = &current_cmd {
-                    report(format, completed + 1, total, current);
+                    report(format, completed + 1, total, current, out);
                 } else if completed < total {
-                    report(format, completed + 1, total, "");
+                    report(format, completed + 1, total, "", out);
                 }
             }
             Err(_) => {
@@ -153,29 +166,39 @@ fn reporter(
     }
 }
 
-fn report(format: ProgressFormat, completed: usize, total: usize, cmd: &str) {
+pub(crate) fn report(
+    format: ProgressFormat,
+    completed: usize,
+    total: usize,
+    cmd: &str,
+    out: &mut (impl Write + ?Sized),
+) {
     if cmd.is_empty() {
         match format {
             ProgressFormat::No => (),
-            ProgressFormat::Yes => eprint!("\x1b[2K\r[{completed}/{total}]"),
-            ProgressFormat::Newline => eprintln!("\x1b[2K\r[{completed}/{total}]"),
+            ProgressFormat::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
+            ProgressFormat::Newline => drop(writeln!(out, "\x1b[2K\r[{completed}/{total}]")),
         }
     } else {
         let shorter = &cmd[0..cmp::min(60, cmd.len())];
         match format {
             ProgressFormat::No => (),
-            ProgressFormat::Yes => eprint!("\x1b[2K\r[{completed}/{total}] {shorter}"),
-            ProgressFormat::Newline => eprintln!("\x1b[2K\r[{completed}/{total}] {shorter}"),
+            ProgressFormat::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}")),
+            ProgressFormat::Newline => {
+                drop(writeln!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
+            }
         };
     }
-    drop(io::stderr().flush());
+    drop(out.flush());
 }
 
-fn run(
-    mut c: process::Command,
-    displayed_command: &str,
-    no_capture: bool,
-) -> Result<process::ExitStatus> {
+struct RunResult {
+    status: process::ExitStatus,
+    /// Output to display on failure (only populated when capturing and command failed)
+    failure_output: Option<Vec<u8>>,
+}
+
+fn run(mut c: process::Command, displayed_command: &str, no_capture: bool) -> Result<RunResult> {
     // https://docs.astral.sh/ruff/faq/#how-can-i-disableforce-ruffs-color-output
     c.env("FORCE_COLOR", "1");
     // https://bixense.com/clicolors/
@@ -183,7 +206,10 @@ fn run(
     // Avoid running on very short-lived files (e.g., editor backups)
     #[allow(clippy::unwrap_used)]
     if c.get_args().len() == 1 && !Path::new(c.get_args().next().unwrap()).exists() {
-        return Ok(process::ExitStatus::from_raw(0));
+        return Ok(RunResult {
+            status: process::ExitStatus::from_raw(0),
+            failure_output: None,
+        });
     }
     if no_capture {
         let status = c
@@ -192,29 +218,37 @@ fn run(
         if !status.success() {
             error!("Command failed");
         }
-        Ok(status)
+        Ok(RunResult {
+            status,
+            failure_output: None,
+        })
     } else {
-        let out = c
+        let output = c
             .output()
             .with_context(|| format!("Failed to execute command: {displayed_command}"))?;
-        let success = out.status.success();
-        if !out.stdout.is_empty() && success {
-            trace!("{}", String::from_utf8_lossy(&out.stdout));
+        let success = output.status.success();
+        if !output.stdout.is_empty() && success {
+            trace!("{}", String::from_utf8_lossy(&output.stdout));
         }
-        if !out.stderr.is_empty() && success {
-            trace!("{}", String::from_utf8_lossy(&out.stderr));
+        if !output.stderr.is_empty() && success {
+            trace!("{}", String::from_utf8_lossy(&output.stderr));
         }
-        if !success {
-            let mut stdout = io::stdout().lock();
-            let mut stderr = io::stderr().lock();
-            stdout.write_all(b"\n")?;
-            stdout.write_all(displayed_command.as_bytes())?;
-            stdout.write_all(b"\n")?;
-            stdout.write_all(out.stdout.as_slice())?;
-            stderr.write_all(b"\n")?;
-            stderr.write_all(out.stderr.as_slice())?;
-        }
-        Ok(out.status)
+        let failure_output = if success {
+            None
+        } else {
+            let mut buf = Vec::new();
+            buf.extend_from_slice(b"\n");
+            buf.extend_from_slice(displayed_command.as_bytes());
+            buf.extend_from_slice(b"\n");
+            buf.extend_from_slice(&output.stdout);
+            buf.extend_from_slice(b"\n");
+            buf.extend_from_slice(&output.stderr);
+            Some(buf)
+        };
+        Ok(RunResult {
+            status: output.status,
+            failure_output,
+        })
     }
 }
 

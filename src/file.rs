@@ -121,13 +121,14 @@ pub(crate) fn collect_files(
     root: &Path,
     cache_dir: &Path,
     progress_format: exec::ProgressFormat,
+    out: &mut (impl Write + ?Sized),
 ) -> Result<Vec<File>> {
     match progress_format {
         exec::ProgressFormat::No => (),
-        exec::ProgressFormat::Yes => eprint!("\x1b[2K\r[0/?] Collecting files"),
-        exec::ProgressFormat::Newline => eprintln!("\x1b[2K\r[0/?] Collecting files"),
+        exec::ProgressFormat::Yes => write!(out, "\x1b[2K\r[0/?] Collecting files")?,
+        exec::ProgressFormat::Newline => writeln!(out, "\x1b[2K\r[0/?] Collecting files")?,
     }
-    drop(std::io::stderr().flush());
+    out.flush()?;
     let mut files = Vec::new();
     let cache = fs::canonicalize(cache_dir).with_context(|| {
         format!(

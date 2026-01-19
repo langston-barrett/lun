@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
+    io::Write,
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -48,11 +49,14 @@ fn collect_files(
     cli: &cli::Cli,
     run: &cli::Run,
     progress_format: exec::ProgressFormat,
+    out: &mut (impl Write + ?Sized),
+    cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
+    let cache_dir = cwd.join(&cli.cache);
     let mut files = if run.staged {
         staged::collect_staged_files()?
     } else {
-        file::collect_files(Path::new("."), &cli.cache, progress_format)?
+        file::collect_files(cwd, &cache_dir, progress_format, out)?
     };
     filter_files(&mut files, &run.only_files, &run.skip_files)?;
     Ok(files)
@@ -175,7 +179,13 @@ struct Config {
     cache_size: Option<usize>,
 }
 
-fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<Config> {
+fn mk_config(
+    cli: &cli::Cli,
+    run: &cli::Run,
+    config: &config::Config,
+    out: &mut (impl Write + ?Sized),
+    cwd: &Path,
+) -> Result<Config> {
     let mode = RunMode::from(run);
     let show_progress = if cli.log.quiet == cli.log.verbose {
         // verbosity == info
@@ -193,12 +203,13 @@ fn mk_config(cli: &cli::Cli, run: &cli::Run, config: &config::Config) -> Result<
         config.refs.clone()
     };
     let mtime = config.mtime && !run.no_mtime;
+    let cache_dir = cwd.join(&cli.cache);
     Ok(Config {
         refs,
-        cache: cli.cache.clone(),
+        cache: cache_dir,
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
-        files: collect_files(cli, run, show_progress)?,
+        files: collect_files(cli, run, show_progress, out, cwd)?,
         mtime,
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
@@ -234,7 +245,7 @@ impl From<&RunResult> for bool {
     }
 }
 
-fn run(config: &Config, lints: &Warns) -> Result<RunResult> {
+fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<RunResult> {
     trace!(?config);
     debug_assert!(config.files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
@@ -262,7 +273,7 @@ fn run(config: &Config, lints: &Warns) -> Result<RunResult> {
         .flat_map(|job| job.files.iter().map(|f| &f.path))
         .collect::<HashSet<_>>()
         .len();
-    let result = do_exec(config, &mut cache, jobs);
+    let result = do_exec(config, &mut cache, jobs, out);
     if !no_jobs && !config.no_cache {
         let cache_full = cache.flush()?;
         warn::check_cache_usage(lints, cache.entries_added, cache.max_entries)?;
@@ -275,9 +286,13 @@ fn run(config: &Config, lints: &Warns) -> Result<RunResult> {
             files: files_linted,
         }),
         Ok(false) => Ok(RunResult::Errors),
-        Err(e) => Err(e),
+        Err(e) => {
+            // Write the final newline that report_result would otherwise handle
+            drop(out.write(b"\n"));
+            Err(e)
+        }
     }?;
-    report_result(&result);
+    report_result(&result, out);
     then_else(config, &result)?;
     Ok(result)
 }
@@ -286,7 +301,8 @@ fn do_exec(
     config: &Config,
     cache: &mut (impl CacheWriter + ?Sized),
     jobs: Vec<crate::cmd::Command>,
-) -> std::result::Result<bool, anyhow::Error> {
+    out: &mut (impl Write + Send),
+) -> Result<bool> {
     if config.ninja {
         ninja::exec(
             cache,
@@ -309,6 +325,7 @@ fn do_exec(
             config.show_progress,
             config.keep_going,
             config.mtime,
+            out,
         )
     }
 }
@@ -338,23 +355,26 @@ pub(crate) fn go(
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
+    out: &mut (impl Write + Send),
+    cwd: &Path,
 ) -> std::result::Result<RunResult, anyhow::Error> {
     lint(run_cli, config, lints)?;
-    fs::create_dir_all(&cli.cache)?; // just to create the dir
+    let cache_dir = cwd.join(&cli.cache);
+    fs::create_dir_all(&cache_dir)?; // just to create the dir
     if run_cli.watch {
-        watch(cli, run_cli, config, lints)?;
+        watch(cli, run_cli, config, lints, out, cwd)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
-        let config = mk_config(cli, run_cli, config)?;
-        let result = run(&config, lints);
+        let config = mk_config(cli, run_cli, config, out, cwd)?;
+        let result = run(&config, lints, out);
         #[cfg(debug_assertions)]
         {
-            let debug_cache = cli.cache.join("debug");
+            let debug_cache = cache_dir.join("debug");
             drop(fs::remove_dir_all(&debug_cache));
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
             debug_config.cache = debug_cache;
-            let debug_result = run(&debug_config, lints);
+            let debug_result = run(&debug_config, lints, &mut std::io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
                     (Ok(r1), Ok(r2)) => bool::from(r1) == bool::from(r2),
@@ -389,9 +409,11 @@ fn watch(
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
+    out: &mut (impl Write + Send),
+    cwd: &Path,
 ) -> Result<bool> {
-    let mut config = mk_config(cli, run_cli, config)?;
-    run(&config, lints)?;
+    let mut config = mk_config(cli, run_cli, config, out, cwd)?;
+    run(&config, lints, out)?;
 
     let initial_config_hash = fs::read(&cli.config)
         .ok()
@@ -408,7 +430,6 @@ fn watch(
     )
     .context("Failed to create file watcher")?;
 
-    let cwd = Path::new(".");
     watcher
         .watch(cwd, RecursiveMode::Recursive)
         .context("Failed to start watching directory")?;
@@ -426,24 +447,27 @@ fn watch(
             clear_term();
             warn_if_config_changed(&cli.config, initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
-            config.files = collect_files(cli, run_cli, config.show_progress)?;
-            run(&config, lints)?;
+            config.files = collect_files(cli, run_cli, config.show_progress, out, cwd)?;
+            run(&config, lints, out)?;
         }
         last_run = time::Instant::now();
     }
 }
 
-fn report_result(res: &RunResult) {
+fn report_result(res: &RunResult, out: &mut (impl Write + ?Sized)) {
     match res {
         RunResult::AllGood { cmds, files: 0 } => {
             debug_assert_eq!(*cmds, 0);
-            eprintln!("\x1b[2K\r[{cmds}/{cmds}] 0 files linted");
+            drop(writeln!(out, "\x1b[2K\r[{cmds}/{cmds}] 0 files linted"));
         }
         RunResult::AllGood { cmds, files: 1 } => {
-            eprintln!("\x1b[2K\r[{cmds}/{cmds}] 1 file linted");
+            drop(writeln!(out, "\x1b[2K\r[{cmds}/{cmds}] 1 file linted"));
         }
         RunResult::AllGood { cmds, files } => {
-            eprintln!("\x1b[2K\r[{cmds}/{cmds}] {files} files linted");
+            drop(writeln!(
+                out,
+                "\x1b[2K\r[{cmds}/{cmds}] {files} files linted"
+            ));
         }
         RunResult::Errors => (), // output is mirrored to std{out,err}
     }

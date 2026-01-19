@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::io;
+use std::path::{Path, PathBuf};
 
 use clap::Parser as _;
 use expect_test::expect;
@@ -10,7 +11,7 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
     let mut cli = cli;
     cli.config = PathBuf::from("test.toml");
     let config = toml::from_str(config).unwrap();
-    crate::go(cli, config).map(|b| assert!(b))
+    crate::go(cli, config, &mut io::sink(), Path::new(".")).map(|b| assert!(b))
 }
 
 #[test]
