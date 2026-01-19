@@ -142,6 +142,7 @@ fn reporter(
                 }
             }
             Ok(ReporterEvent::Failed { output }) => {
+                drop(out.write(b"\nCommand failed:"));
                 drop(out.write_all(&output));
             }
             Ok(ReporterEvent::Done { cmd }) => {
