@@ -54,6 +54,7 @@ impl TestFile {
 fn process_config_section(scenario: &mut TestScenario, content: &str, path: &Path) -> Result<()> {
     scenario.config = toml::from_str(content.trim())
         .with_context(|| format!("Failed to parse config in test file: {}", path.display()))?;
+    scenario.config.known_tools()?;
     Ok(())
 }
 
@@ -556,6 +557,11 @@ fn only_files() {
 #[test]
 fn skip_files() {
     test("tests/skip-files.md");
+}
+
+#[test]
+fn tool_override() {
+    test("tests/tool-override.md");
 }
 
 #[test]
