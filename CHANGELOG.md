@@ -2,6 +2,12 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## [0.7.1] - 2026-01-19
+
+[0.7.1]: https://github.com/langston-barrett/lun/releases/tag/v0.7.1
+
+- Fix a bug in the `--check` command for `cargo fmt`
+
 ## [0.7.0] - 2026-01-19
 
 [0.7.0]: https://github.com/langston-barrett/lun/releases/tag/v0.7.0
