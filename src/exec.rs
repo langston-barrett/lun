@@ -155,7 +155,7 @@ fn reporter(
 
                 if let Some(current) = &current_cmd {
                     report(format, completed + 1, total, current, out);
-                } else if completed < total {
+                } else if completed + 1 < total {
                     report(format, completed + 1, total, "", out);
                 }
             }
