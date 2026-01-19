@@ -36,9 +36,14 @@ b
 run --keep-going
 ```
 
-TODO(#81): Fix 0 files found
-
 ```
 [0/?] Collecting files
-[0/0] 0 files linted
+[1/2] false <TEMP>/file.a
+Command failed:
+false <TEMP>/file.b
+
+
+[2/2] false <TEMP>/file.a
+Command failed:
+false <TEMP>/file.a
 ```

@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use ignore::WalkBuilder;
-use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 use tracing::debug;
 use xxhash_rust::xxh3::Xxh3;
 
@@ -148,6 +148,7 @@ pub(crate) fn collect_files(
                 && fs::canonicalize(path).is_ok_and(|p| !p.starts_with(&cache))
         })
         .build();
+    let strip = root == env::current_dir()?;
     for result in walker {
         let entry = result.with_context(|| "Failed to read directory entry")?;
         let path = entry.path();
@@ -157,7 +158,12 @@ pub(crate) fn collect_files(
 
         debug!("Found {}", path.display());
         // This can fail due to TOCTTOU bugs between content/metadata
-        if let Ok(file) = File::new(path.strip_prefix(root)?.to_path_buf()) {
+        let path = if strip {
+            path.strip_prefix(root)?
+        } else {
+            path
+        };
+        if let Ok(file) = File::new(path.to_path_buf()) {
             files.push(file);
         } else {
             debug!("Failed to process {}", path.display());
