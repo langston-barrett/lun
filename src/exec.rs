@@ -90,7 +90,7 @@ pub(crate) fn exec(
                     );
                     tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
                     let hashes = if success {
-                        done(cmd, mtime_enabled)?
+                        done(cmd, mtime_enabled)
                     } else {
                         Vec::new()
                     };
@@ -188,7 +188,7 @@ pub(crate) fn report(
             ProgressFormat::Newline => {
                 drop(writeln!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
             }
-        };
+        }
     }
     drop(out.flush());
 }
@@ -253,7 +253,7 @@ fn run(mut c: process::Command, displayed_command: &str, no_capture: bool) -> Re
     }
 }
 
-fn done(cmd: cmd::Command, mtime_enabled: bool) -> Result<Vec<cache::KeyHash>> {
+fn done(cmd: cmd::Command, mtime_enabled: bool) -> Vec<cache::KeyHash> {
     let tool = cmd.tool.clone();
     let mut hashes = Vec::with_capacity(if mtime_enabled {
         cmd.files.len() * 2
@@ -269,5 +269,5 @@ fn done(cmd: cmd::Command, mtime_enabled: bool) -> Result<Vec<cache::KeyHash>> {
             hashes.push(cache::KeyHash::from(&mtime_key));
         }
     }
-    Ok(hashes)
+    hashes
 }

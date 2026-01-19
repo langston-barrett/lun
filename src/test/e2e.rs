@@ -12,7 +12,7 @@ struct TestCase {
     files: Vec<(PathBuf, String)>,
     args: Vec<String>,
     expected_output: String,
-    /// Line number where expected output starts (for UPDATE_EXPECT)
+    /// Line number where expected output starts (for `UPDATE_EXPECT`)
     expected_output_line: usize,
 }
 
@@ -44,6 +44,7 @@ fn parse_test_file(path: &Path) -> Result<TestCase> {
                         }
                     }
                     Some("command") => {
+                        #[allow(clippy::if_not_else)]
                         if !seen_command_args {
                             // First code block is the command args
                             args = code_block_content

@@ -1,6 +1,5 @@
 use std::{num::NonZeroUsize, sync::Arc};
 
-use anyhow::Result;
 use tracing::{debug, trace};
 
 use crate::{cache, cmd, file as files, git, job, tool};
@@ -69,7 +68,7 @@ fn tool_commands<C: cache::Cache + ?Sized>(
     cache: &mut C,
     git_refs: &[String],
     mtime_enabled: bool,
-) -> Result<Option<cmd::Command>> {
+) -> Option<cmd::Command> {
     debug!("Planning for {}", tool.display_name());
     debug_assert!(!files.is_empty());
     let tool = Arc::new(tool.clone());
@@ -86,12 +85,12 @@ fn tool_commands<C: cache::Cache + ?Sized>(
         .collect::<Vec<_>>();
 
     if files.is_empty() {
-        Ok(None)
+        None
     } else {
-        Ok(Some(cmd::Command {
+        Some(cmd::Command {
             tool: tool.clone(),
             files,
-        }))
+        })
     }
 }
 
@@ -103,15 +102,15 @@ pub(crate) fn plan<C: cache::Cache + ?Sized>(
     cores: NonZeroUsize,
     no_batch: bool,
     mtime_enabled: bool,
-) -> Result<Vec<cmd::Command>> {
+) -> Vec<cmd::Command> {
     if files.is_empty() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
     debug!("Collected {} files", files.len());
     let mut files = Vec::from(files);
     let mut commands = Vec::with_capacity(tools.len());
     for tool in tools {
-        let Some(cmd) = tool_commands(tool, &mut files, cache, git_refs, mtime_enabled)? else {
+        let Some(cmd) = tool_commands(tool, &mut files, cache, git_refs, mtime_enabled) else {
             debug!(
                 "No needed files for {}",
                 tool.name.as_ref().unwrap_or(&tool.cmd)
@@ -121,5 +120,5 @@ pub(crate) fn plan<C: cache::Cache + ?Sized>(
         debug_assert!(cmd.files.iter().all(|f| f.content_stamp.is_some()));
         commands.push(cmd);
     }
-    Ok(job::create_jobs(commands, cores, no_batch))
+    job::create_jobs(commands, cores, no_batch)
 }

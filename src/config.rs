@@ -112,10 +112,10 @@ impl Config {
     pub(crate) fn known_tools(&mut self) -> Result<()> {
         for known_tool in &self.tool {
             if let Some(mut linter) = known::known_linter_by_name(&known_tool.name) {
-                known_tool.merge_into_linter(&mut linter)?;
+                known_tool.merge_into_linter(&mut linter);
                 self.linter.push(linter);
             } else if let Some(mut formatter) = known::known_formatter_by_name(&known_tool.name) {
-                known_tool.merge_into_formatter(&mut formatter)?;
+                known_tool.merge_into_formatter(&mut formatter);
                 self.formatter.push(formatter);
             } else {
                 anyhow::bail!("Unknown tool name in [[tool]]: {}", known_tool.name);
@@ -207,21 +207,21 @@ pub(crate) struct KnownTool {
 }
 
 impl KnownTool {
-    fn merge_into_linter(&self, linter: &mut Linter) -> Result<()> {
+    fn merge_into_linter(&self, linter: &mut Linter) {
         if let Some(ref cmd) = self.cmd {
-            linter.tool.cmd = cmd.clone();
+            linter.tool.cmd.clone_from(cmd);
         }
         if !self.files.is_empty() {
-            linter.tool.files = self.files.clone();
+            linter.tool.files.clone_from(&self.files);
         }
         if !self.ignore.is_empty() {
-            linter.tool.ignore = self.ignore.clone();
+            linter.tool.ignore.clone_from(&self.ignore);
         }
         if let Some(granularity) = self.granularity {
             linter.tool.granularity = granularity;
         }
         if !self.configs.is_empty() {
-            linter.tool.configs = self.configs.clone();
+            linter.tool.configs.clone_from(&self.configs);
         }
         if let Some(ref cd) = self.cd {
             linter.tool.cd = Some(cd.clone());
@@ -229,24 +229,23 @@ impl KnownTool {
         if let Some(ref fix) = self.fix {
             linter.fix = Some(fix.clone());
         }
-        Ok(())
     }
 
-    fn merge_into_formatter(&self, formatter: &mut Formatter) -> Result<()> {
+    fn merge_into_formatter(&self, formatter: &mut Formatter) {
         if let Some(ref cmd) = self.cmd {
-            formatter.tool.cmd = cmd.clone();
+            formatter.tool.cmd.clone_from(cmd);
         }
         if !self.files.is_empty() {
-            formatter.tool.files = self.files.clone();
+            formatter.tool.files.clone_from(&self.files);
         }
         if !self.ignore.is_empty() {
-            formatter.tool.ignore = self.ignore.clone();
+            formatter.tool.ignore.clone_from(&self.ignore);
         }
         if let Some(granularity) = self.granularity {
             formatter.tool.granularity = granularity;
         }
         if !self.configs.is_empty() {
-            formatter.tool.configs = self.configs.clone();
+            formatter.tool.configs.clone_from(&self.configs);
         }
         if let Some(ref cd) = self.cd {
             formatter.tool.cd = Some(cd.clone());
@@ -254,7 +253,6 @@ impl KnownTool {
         if let Some(ref check) = self.check {
             formatter.check = Some(check.clone());
         }
-        Ok(())
     }
 }
 
@@ -445,10 +443,10 @@ fn get_tool_version(cmd: &str) -> Option<String> {
         .output()
         .ok()?;
     if output.status.success() {
-        let version_output = if !output.stdout.is_empty() {
-            String::from_utf8_lossy(&output.stdout)
-        } else {
+        let version_output = if output.stdout.is_empty() {
             String::from_utf8_lossy(&output.stderr)
+        } else {
+            String::from_utf8_lossy(&output.stdout)
         };
         let version = version_output.trim();
         debug!("Tool {} version: {}", program, version);

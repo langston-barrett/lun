@@ -20,7 +20,7 @@ use warns::Warns;
 
 pub(crate) fn warns(name: Option<&str>) -> anyhow::Result<()> {
     if let Some(name) = name {
-        let warn = Warn::from_str(name).map_err(|_| anyhow::anyhow!("Unknown lint: {name}"))?;
+        let warn = Warn::from_str(name).map_err(|()| anyhow::anyhow!("Unknown lint: {name}"))?;
         print!("{}", warn.doc());
     } else {
         for warn in Warn::all() {

@@ -73,9 +73,11 @@ impl File {
             .with_context(|| format!("Failed to get metadata for: {}", path.display()))?;
         let metadata_stamp = compute_md_stamp(&path, &metadata);
         let mtime_stamp = compute_mtime_stamp(&path, &metadata)?;
+        let size = usize::try_from(metadata.len())
+            .with_context(|| format!("File too bug: {}b", metadata.len()))?;
         Ok(Self {
             path,
-            size: metadata.len() as usize,
+            size,
             metadata_stamp,
             mtime_stamp,
             content_stamp: None,
