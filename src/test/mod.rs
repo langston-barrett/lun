@@ -499,6 +499,16 @@ fn batch2() {
 }
 
 #[test]
+fn check() {
+    test("tests/check.md");
+}
+
+#[test]
+fn configs() {
+    test("tests/configs.md");
+}
+
+#[test]
 fn batch3() {
     test("tests/batch3.md");
 }
@@ -521,6 +531,11 @@ fn color() {
 #[test]
 fn fail() {
     test("tests/fail.md");
+}
+
+#[test]
+fn fix() {
+    test("tests/fix.md");
 }
 
 #[test]
