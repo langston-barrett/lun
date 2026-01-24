@@ -98,8 +98,11 @@ The following tools are recognized by name:
 
 **Linters:**
 
+- `bash -n`
 - `cargo clippy`
 - `hlint`
+- `jq null`
+- `make -n`
 - `mdlynx`
 - `mypy`
 - `ruff check`

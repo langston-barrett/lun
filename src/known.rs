@@ -6,6 +6,18 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
     vec![
         config::Linter {
             tool: config::Tool {
+                name: Some(String::from("bash -n")),
+                cmd: "bash -n --".to_string(),
+                files: vec!["*.sh".to_string()],
+                ignore: Vec::new(),
+                granularity: Granularity::Individual,
+                configs: Vec::new(),
+                cd: None,
+            },
+            fix: None,
+        },
+        config::Linter {
+            tool: config::Tool {
                 name: Some(String::from("cargo clippy")),
                 cmd: "cargo clippy --color={{color}} --all-targets -- --deny warnings".to_string(),
                 files: vec!["*.rs".to_string()],
@@ -24,6 +36,30 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
                 ignore: Vec::new(),
                 granularity: Granularity::Individual,
                 configs: vec![PathBuf::from(".hlint.yml"), PathBuf::from(".hlint.yaml")],
+                cd: None,
+            },
+            fix: None,
+        },
+        config::Linter {
+            tool: config::Tool {
+                name: Some(String::from("jq null")),
+                cmd: "jq null --".to_string(),
+                files: vec!["*.json".to_string()],
+                ignore: Vec::new(),
+                granularity: Granularity::Individual,
+                configs: Vec::new(),
+                cd: None,
+            },
+            fix: None,
+        },
+        config::Linter {
+            tool: config::Tool {
+                name: Some(String::from("make -n")),
+                cmd: "make -n".to_string(),
+                files: vec!["**/Makefile".to_string(), "*.mk".to_string()],
+                ignore: Vec::new(),
+                granularity: Granularity::Batch,
+                configs: Vec::new(),
                 cd: None,
             },
             fix: None,
