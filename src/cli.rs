@@ -29,6 +29,8 @@ pub(crate) enum Command {
     Cache(Cache),
     Init(Init),
     Add(Add),
+    /// Print known tools as TOML
+    Known,
     /// Show available warnings
     Warns {
         /// Show documentation for a specific warnings

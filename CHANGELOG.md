@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 - Add `bash -n`, `jq null`, and `make -n` to known linters
+- Add `known` subcommand that prints known tools
 
 ## [0.7.1] - 2026-01-19
 
