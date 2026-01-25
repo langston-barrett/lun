@@ -130,3 +130,148 @@ pub(crate) fn report_line(
     }
     drop(out.flush());
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use expect_test::expect;
+
+    fn to_str(buf: &[u8]) -> &str {
+        std::str::from_utf8(buf).unwrap()
+    }
+
+    #[test]
+    fn report_line_terminal_empty_msg() {
+        let mut buf = Vec::new();
+        report_line(Format::Terminal, 5, Some(10), "", &mut buf);
+        expect![[r#"\u{1b}[2K\r[5/10]"#]].assert_eq(&to_str(&buf).escape_default().to_string());
+    }
+
+    #[test]
+    fn report_line_terminal_truncates_long_msg() {
+        let mut buf = Vec::new();
+        let long_msg = "a".repeat(100);
+        report_line(Format::Terminal, 1, Some(5), &long_msg, &mut buf);
+        expect![[
+            r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"#
+        ]]
+        .assert_eq(&to_str(&buf).escape_default().to_string());
+    }
+
+    #[test]
+    fn report_line_newline_with_msg() {
+        let mut buf = Vec::new();
+        report_line(Format::Newline, 3, Some(10), "working", &mut buf);
+        expect![[r#"
+            [3/10] working
+        "#]]
+        .assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn report_line_newline_empty_msg() {
+        let mut buf = Vec::new();
+        report_line(Format::Newline, 3, Some(10), "", &mut buf);
+        expect![[r#"
+            [3/10]
+        "#]]
+        .assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn report_line_newline_no_truncation() {
+        let mut buf = Vec::new();
+        let long_msg = "a".repeat(100);
+        report_line(Format::Newline, 1, Some(5), &long_msg, &mut buf);
+        expect![[r#"
+            [1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        "#]]
+        .assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn report_line_no_format() {
+        let mut buf = Vec::new();
+        report_line(Format::No, 1, Some(10), "hello", &mut buf);
+        expect![[""]].assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn progress_write_at_completed() {
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        progress.completed = 5;
+        progress.write("msg");
+        progress.done();
+        expect![[r#"
+            [5/10] msg
+        "#]]
+        .assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn progress_fail_terminal_adds_newline() {
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+        progress.fail(b"error");
+        progress.done();
+        expect![[r#"\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
+    }
+
+    #[test]
+    fn progress_fail_newline_no_prefix() {
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        progress.fail(b"error");
+        progress.done();
+        expect![["error"]].assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn progress_drop_terminal_adds_newline() {
+        let mut buf = Vec::new();
+        {
+            let _progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+            // dropped without calling done()
+        }
+        expect![[r#"\n"#]].assert_eq(&to_str(&buf).escape_default().to_string());
+    }
+
+    #[test]
+    fn progress_done_prevents_drop_newline() {
+        let mut buf = Vec::new();
+        {
+            let progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+            progress.done();
+        }
+        expect![[""]].assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn progress_rate_limit_terminal() {
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+        progress.write("first");
+        progress.write("second"); // should be rate-limited
+        progress.write("third"); // should be rate-limited
+        progress.done();
+        expect![[r#"\u{1b}[2K\r[0/10] first"#]]
+            .assert_eq(&to_str(&buf).escape_default().to_string());
+    }
+
+    #[test]
+    fn progress_no_rate_limit_newline() {
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        progress.write("first");
+        progress.write("second");
+        progress.write("third");
+        progress.done();
+        expect![[r#"
+            [0/10] first
+            [0/10] second
+            [0/10] third
+        "#]]
+        .assert_eq(to_str(&buf));
+    }
+}
