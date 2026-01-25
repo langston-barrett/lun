@@ -1,5 +1,6 @@
 use std::cmp;
 use std::io::Write;
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Format {
@@ -8,12 +9,15 @@ pub(crate) enum Format {
     Newline,
 }
 
+const TERMINAL_RATE_LIMIT: Duration = Duration::from_millis(100);
+
 pub(crate) struct Progress<'a, W: Write + ?Sized> {
     format: Format,
     pub(crate) completed: usize,
     pub(crate) total: Option<usize>,
     out: &'a mut W,
     done: bool,
+    last_write: Option<Instant>,
 }
 
 impl<'a, W: Write + ?Sized> Progress<'a, W> {
@@ -24,6 +28,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
             total,
             out,
             done: false,
+            last_write: None,
         }
     }
 
@@ -31,14 +36,31 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
         self.completed += 1;
     }
 
+    fn should_write(&mut self) -> bool {
+        if !matches!(self.format, Format::Terminal) {
+            return true;
+        }
+        let dominated = self
+            .last_write
+            .is_some_and(|t| t.elapsed() < TERMINAL_RATE_LIMIT);
+        if !dominated {
+            self.last_write = Some(Instant::now());
+        }
+        !dominated
+    }
+
     /// Report progress at the current completed position.
     pub(crate) fn write(&mut self, msg: &str) {
-        report_line(self.format, self.completed, self.total, msg, self.out);
+        if self.should_write() {
+            report_line(self.format, self.completed, self.total, msg, self.out);
+        }
     }
 
     /// Report progress at completed+1 (showing the item being worked on).
     pub(crate) fn report(&mut self, msg: &str) {
-        report_line(self.format, self.completed + 1, self.total, msg, self.out);
+        if self.should_write() {
+            report_line(self.format, self.completed + 1, self.total, msg, self.out);
+        }
     }
 
     pub(crate) fn fail(&mut self, msg: &[u8]) {
