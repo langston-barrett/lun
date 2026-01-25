@@ -30,7 +30,7 @@ use clap::Parser as _;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process;
-use tracing::trace;
+use tracing::{debug, trace};
 
 #[cfg(feature = "dhat")]
 #[global_allocator]
@@ -107,6 +107,7 @@ fn main() -> Result<()> {
 
     let cli = cli::Cli::parse();
     log::init_tracing(cli.log);
+    debug!("version = {}", env!("CARGO_PKG_VERSION"));
     trace!(?cli);
     let config = config::Config::load(&cli.config)?;
     trace!(?config);
