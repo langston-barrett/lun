@@ -1,0 +1,93 @@
+use std::cmp;
+use std::io::Write;
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Format {
+    No,
+    Yes,
+    Newline,
+}
+
+pub(crate) struct Progress<'a, W: Write + ?Sized> {
+    format: Format,
+    pub(crate) completed: usize,
+    pub(crate) total: usize,
+    out: &'a mut W,
+    done: bool,
+}
+
+impl<'a, W: Write + ?Sized> Progress<'a, W> {
+    pub(crate) fn new(format: Format, total: usize, out: &'a mut W) -> Self {
+        Self {
+            format,
+            completed: 0,
+            total,
+            out,
+            done: false,
+        }
+    }
+
+    pub(crate) fn increment(&mut self) {
+        self.completed += 1;
+    }
+
+    pub(crate) fn report(&mut self, msg: &str) {
+        report_line(self.format, self.completed + 1, self.total, msg, self.out);
+    }
+
+    pub(crate) fn fail(&mut self, msg: &[u8]) {
+        let prefix = match self.format {
+            Format::Yes => b"\n".as_slice(),
+            Format::Newline | Format::No => b"".as_slice(),
+        };
+        drop(self.out.write(prefix));
+        drop(self.out.write_all(msg));
+    }
+
+    pub(crate) fn done(mut self) {
+        self.done = true;
+    }
+}
+
+impl<W: Write + ?Sized> Drop for Progress<'_, W> {
+    fn drop(&mut self) {
+        if !self.done && matches!(self.format, Format::Yes) {
+            drop(self.out.write(b"\n"));
+        }
+    }
+}
+
+pub(crate) fn prefix(format: Format) -> &'static str {
+    match format {
+        Format::Yes => "\x1b[2K\r",
+        Format::Newline | Format::No => "",
+    }
+}
+
+pub(crate) fn report_line(
+    format: Format,
+    completed: usize,
+    total: usize,
+    msg: &str,
+    out: &mut (impl Write + ?Sized),
+) {
+    if msg.is_empty() {
+        match format {
+            Format::No => (),
+            Format::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
+            Format::Newline => drop(writeln!(out, "[{completed}/{total}]")),
+        }
+    } else {
+        match format {
+            Format::No => (),
+            Format::Yes => {
+                let shorter = &msg[0..cmp::min(60, msg.len())];
+                drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
+            }
+            Format::Newline => {
+                drop(writeln!(out, "[{completed}/{total}] {msg}"));
+            }
+        }
+    }
+    drop(out.flush());
+}

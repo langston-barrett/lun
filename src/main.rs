@@ -17,6 +17,7 @@ mod known;
 mod log;
 mod ninja;
 mod plan;
+mod progress;
 mod run;
 mod staged;
 mod tool;

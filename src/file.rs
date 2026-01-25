@@ -6,7 +6,7 @@ use std::{env, fs};
 use tracing::debug;
 use xxhash_rust::xxh3::Xxh3;
 
-use crate::exec;
+use crate::progress::Format;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Xxhash(pub(crate) u128);
@@ -122,13 +122,13 @@ pub(crate) fn compute_hash(content: &[u8]) -> Xxhash {
 pub(crate) fn collect_files(
     root: &Path,
     cache_dir: &Path,
-    progress_format: exec::ProgressFormat,
+    progress_format: Format,
     out: &mut (impl Write + ?Sized),
 ) -> Result<Vec<File>> {
     match progress_format {
-        exec::ProgressFormat::No => (),
-        exec::ProgressFormat::Yes => write!(out, "\x1b[2K\r[0/?] Collecting files")?,
-        exec::ProgressFormat::Newline => writeln!(out, "\x1b[2K\r[0/?] Collecting files")?,
+        Format::No => (),
+        Format::Yes => write!(out, "\x1b[2K\r[0/?] Collecting files")?,
+        Format::Newline => writeln!(out, "[0/?] Collecting files")?,
     }
     out.flush()?;
     let mut files = Vec::new();

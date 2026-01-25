@@ -13,6 +13,7 @@ use tracing::{debug, error, trace};
 
 use crate::cache::CacheWriter;
 use crate::job;
+use crate::progress::{Format, Progress};
 use crate::{cache, cmd};
 
 #[derive(Debug)]
@@ -22,20 +23,13 @@ enum ReporterEvent {
     Failed { output: Vec<u8> },
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum ProgressFormat {
-    No,
-    Yes,
-    Newline,
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
     cache_writer: &mut (impl CacheWriter + ?Sized),
     batches: Vec<cmd::Command>,
     cores: NonZeroUsize,
     no_capture: bool,
-    format: ProgressFormat,
+    format: Format,
     keep_going: bool,
     mtime_enabled: bool,
     out: &mut (impl Write + Send),
@@ -56,7 +50,7 @@ pub(crate) fn exec(
     let failed = AtomicBool::new(false);
 
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
-        s.spawn(|| reporter(num_threads, n_batches, rx, format, out));
+        s.spawn(|| reporter(num_threads, rx, Progress::new(format, n_batches, out)));
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
             let tx = tx.clone();
@@ -120,84 +114,50 @@ pub(crate) fn exec(
     Ok(ok)
 }
 
-fn reporter(
+fn reporter<W: Write + ?Sized>(
     n_threads: usize,
-    n_batches: usize,
     rx: mpsc::Receiver<ReporterEvent>,
-    format: ProgressFormat,
-    out: &mut (impl Write + Send),
+    mut progress: Progress<'_, W>,
 ) {
     let mut running = HashSet::with_capacity(n_threads);
-    let mut completed = 0;
     let mut current_cmd: Option<String> = None;
-    let total = n_batches;
 
     loop {
         match rx.recv() {
             Ok(ReporterEvent::Start { cmd }) => {
                 running.insert(cmd.clone());
                 if current_cmd.is_none() {
-                    report(format, completed + 1, total, &cmd, out);
+                    progress.report(&cmd);
                     current_cmd = Some(cmd);
                 }
             }
             Ok(ReporterEvent::Failed { output }) => {
-                let prefix = match format {
-                    ProgressFormat::Yes => b"\n".as_slice(),
-                    ProgressFormat::Newline | ProgressFormat::No => b"".as_slice(),
-                };
-                drop(out.write(prefix));
-                drop(out.write(b"Command failed:"));
-                drop(out.write_all(&output));
+                let mut msg = b"Command failed:".to_vec();
+                msg.extend_from_slice(&output);
+                progress.fail(&msg);
             }
             Ok(ReporterEvent::Done { cmd }) => {
                 running.remove(&cmd);
-                completed += 1;
+                progress.increment();
 
                 if current_cmd.as_ref() == Some(&cmd) {
                     current_cmd = running.iter().next().cloned();
                 }
 
                 if let Some(current) = &current_cmd {
-                    report(format, completed + 1, total, current, out);
-                } else if completed + 1 < total {
-                    report(format, completed + 1, total, "", out);
+                    progress.report(current);
+                } else if progress.completed + 1 < progress.total {
+                    progress.report("");
                 }
             }
             Err(_) => {
-                // nb: final newline printing happens in `run::report_result`
+                // Mark done to prevent drop from adding a newline;
+                // final newline printing happens in `run::report_result`
+                progress.done();
                 break;
             }
         }
     }
-}
-
-pub(crate) fn report(
-    format: ProgressFormat,
-    completed: usize,
-    total: usize,
-    cmd: &str,
-    out: &mut (impl Write + ?Sized),
-) {
-    if cmd.is_empty() {
-        match format {
-            ProgressFormat::No => (),
-            ProgressFormat::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
-            ProgressFormat::Newline => drop(writeln!(out, "[{completed}/{total}]")),
-        }
-    } else {
-        match format {
-            ProgressFormat::No => (),
-            ProgressFormat::Yes => {
-                let shorter = &cmd[0..cmp::min(60, cmd.len())];
-                drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
-            }
-            ProgressFormat::Newline => {
-                drop(writeln!(out, "[{completed}/{total}] {cmd}"));
-            }
-        }
-    }
-    drop(out.flush());
 }
 
 struct RunResult {
