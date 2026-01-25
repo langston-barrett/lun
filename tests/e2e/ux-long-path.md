@@ -27,6 +27,6 @@ run
 
 ```
 [0/?] Collecting files
-[1/1] echo <TEMP>/really/ridiculously/long/path-name-with
+[1/1] echo <TEMP>/really/ridiculously/long/path-name-with-many-components.txt
 [1/1] 1 file linted
 ```
