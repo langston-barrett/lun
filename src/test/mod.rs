@@ -3,7 +3,9 @@ mod warn;
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, cmd, file, plan, run,
+    cli, cmd, file, plan,
+    progress::{Format, Progress},
+    run,
 };
 
 use anyhow::{Context, Result};
@@ -362,7 +364,18 @@ fn test(path: &'static str) {
             )
             .collect::<Result<Vec<_>>>()
             .unwrap();
-        let batches = plan::plan(&mut cache, &tool, &files, &[], cores, run.no_batch, false);
+        let mut sink = std::io::sink();
+        let mut progress = Progress::new(Format::No, None, &mut sink);
+        let batches = plan::plan(
+            &mut cache,
+            &tool,
+            &files,
+            &[],
+            cores,
+            run.no_batch,
+            false,
+            &mut progress,
+        );
         let out = jobs_to_string(&batches);
         assert_eq!(
             out,

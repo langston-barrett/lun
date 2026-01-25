@@ -1,8 +1,9 @@
+use std::io::Write;
 use std::{num::NonZeroUsize, sync::Arc};
 
 use tracing::{debug, trace};
 
-use crate::{cache, cmd, file as files, git, job, tool};
+use crate::{cache, cmd, file as files, git, job, progress::Progress, tool};
 
 fn is_match(tool: &Arc<tool::Tool>, f: &files::File) -> bool {
     let path = f.path.as_path();
@@ -62,12 +63,13 @@ fn need_file<C: cache::Cache + ?Sized>(
     }
 }
 
-fn tool_commands<C: cache::Cache + ?Sized>(
+fn tool_commands<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     tool: &tool::Tool,
     files: &mut [files::File],
     cache: &mut C,
     git_refs: &[String],
     mtime_enabled: bool,
+    progress: &mut Progress<'_, W>,
 ) -> Option<cmd::Command> {
     debug!("Planning for {}", tool.display_name());
     debug_assert!(!files.is_empty());
@@ -76,6 +78,8 @@ fn tool_commands<C: cache::Cache + ?Sized>(
     let files = files
         .iter_mut()
         .filter_map(|f| {
+            progress.increment();
+            progress.write("Planning");
             if is_match(&tool, f) && need_file(cache, git_refs, mtime_enabled, &tool, f) {
                 Some(f.clone())
             } else {
@@ -94,7 +98,8 @@ fn tool_commands<C: cache::Cache + ?Sized>(
     }
 }
 
-pub(crate) fn plan<C: cache::Cache + ?Sized>(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     cache: &mut C,
     tools: &[tool::Tool],
     files: &[files::File],
@@ -102,6 +107,7 @@ pub(crate) fn plan<C: cache::Cache + ?Sized>(
     cores: NonZeroUsize,
     no_batch: bool,
     mtime_enabled: bool,
+    progress: &mut Progress<'_, W>,
 ) -> Vec<cmd::Command> {
     if files.is_empty() {
         return Vec::new();
@@ -110,7 +116,8 @@ pub(crate) fn plan<C: cache::Cache + ?Sized>(
     let mut files = Vec::from(files);
     let mut commands = Vec::with_capacity(tools.len());
     for tool in tools {
-        let Some(cmd) = tool_commands(tool, &mut files, cache, git_refs, mtime_enabled) else {
+        let Some(cmd) = tool_commands(tool, &mut files, cache, git_refs, mtime_enabled, progress)
+        else {
             debug!(
                 "No needed files for {}",
                 tool.name.as_ref().unwrap_or(&tool.cmd)
