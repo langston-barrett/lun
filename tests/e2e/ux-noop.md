@@ -27,5 +27,7 @@ run
 
 ```
 [0/?] Collecting files
+[1/2] Planning
+[2/2] Planning
 [0/0] 0 files linted
 ```

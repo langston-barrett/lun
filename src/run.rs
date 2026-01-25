@@ -17,7 +17,7 @@ use tracing::{debug, trace, warn};
 use crate::{
     cache::{self, CacheWriter},
     cli, config, exec, file, ninja, plan, progress,
-    progress::Format,
+    progress::{Format, Progress},
     staged, tool,
     warn::{self, warns::Warns},
 };
@@ -274,6 +274,8 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
     } else {
         cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
+    let plan_total = config.files.len() * config.tools.len();
+    let mut plan_progress = Progress::new(config.show_progress, Some(plan_total), out);
     let jobs = plan::plan(
         &mut cache,
         &config.tools,
@@ -282,7 +284,9 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         config.cores,
         config.no_batch,
         config.mtime,
+        &mut plan_progress,
     );
+    plan_progress.done();
     if !config.no_cache {
         cache.flush()?;
     }
