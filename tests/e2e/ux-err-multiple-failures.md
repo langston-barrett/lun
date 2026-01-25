@@ -39,12 +39,10 @@ run --keep-going
 ```
 [0/?] Collecting files
 [1/2] false <TEMP>/file.a
-
 Command failed:
 false <TEMP>/file.a
 
 [2/2] false <TEMP>/file.b
-
 Command failed:
 false <TEMP>/file.b
 ```
