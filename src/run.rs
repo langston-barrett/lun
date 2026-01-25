@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
-    io::Write,
+    io::{self, IsTerminal as _, Write},
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -188,11 +188,16 @@ fn mk_config(
     cwd: &Path,
 ) -> Result<Config> {
     let mode = RunMode::from(run);
-    let show_progress = if cli.log.quiet == cli.log.verbose {
+    let is_a_tty = if cfg!(test) {
+        false
+    } else {
+        io::stderr().is_terminal()
+    };
+    let show_progress = if !is_a_tty || cli.log.quiet < cli.log.verbose {
+        exec::ProgressFormat::Newline
+    } else if cli.log.quiet == cli.log.verbose {
         // verbosity == info
         exec::ProgressFormat::Yes
-    } else if cli.log.quiet <= cli.log.verbose {
-        exec::ProgressFormat::Newline
     } else {
         exec::ProgressFormat::No
     };
@@ -385,7 +390,7 @@ pub(crate) fn go(
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
             debug_config.cache = debug_cache;
-            let debug_result = run(&debug_config, lints, &mut std::io::sink());
+            let debug_result = run(&debug_config, lints, &mut io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
                     (Ok(r1), Ok(r2)) => bool::from(r1) == bool::from(r2),

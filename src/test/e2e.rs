@@ -201,7 +201,7 @@ fn run_test(test_path: &Path) -> Result<()> {
     let captured = {
         let raw = String::from_utf8_lossy(&output_buffer).to_string();
         // Replace terminal clear-line escape sequences with newlines for readability
-        raw.replace("\x1b[2K\r", "\n")
+        raw.replace("\x1b[2K\r", "")
     };
 
     // Handle errors by capturing them as output
