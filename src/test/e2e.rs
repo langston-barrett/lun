@@ -275,16 +275,6 @@ fn ux_err_bogus_command() {
 }
 
 #[test]
-fn ux_failure() {
-    test_file("ux-failure");
-}
-
-#[test]
-fn ux_success() {
-    test_file("ux-success");
-}
-
-#[test]
 fn ux_err_missing_config() {
     test_file("ux-err-missing-config");
 }
@@ -315,6 +305,21 @@ fn ux_err_multiple_failures() {
 }
 
 #[test]
+fn ux_failure() {
+    test_file("ux-failure");
+}
+
+#[test]
+fn ux_long_path_name() {
+    test_file("ux-long-path");
+}
+
+#[test]
 fn ux_noop() {
     test_file("ux-noop");
+}
+
+#[test]
+fn ux_success() {
+    test_file("ux-success");
 }
