@@ -199,7 +199,7 @@ fn mk_config(
         Format::Newline
     } else if cli.log.quiet == cli.log.verbose {
         // verbosity == info
-        Format::Yes
+        Format::Terminal
     } else {
         Format::No
     };
@@ -218,7 +218,7 @@ fn mk_config(
     let tools = match filter_tools(run, config, mode, cli.log.color) {
         Ok(t) => t,
         Err(e) => {
-            if matches!(show_progress, Format::Yes) {
+            if matches!(show_progress, Format::Terminal) {
                 drop(out.write(b"\n"));
             }
             return Err(e);
@@ -308,7 +308,7 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         Ok(false) => Ok(RunResult::Errors),
         Err(e) => {
             // Write the final newline that report_result would otherwise handle
-            if matches!(config.show_progress, Format::Yes) {
+            if matches!(config.show_progress, Format::Terminal) {
                 drop(out.write(b"\n"));
             }
             Err(e)

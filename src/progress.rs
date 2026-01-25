@@ -4,7 +4,7 @@ use std::io::Write;
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Format {
     No,
-    Yes,
+    Terminal,
     Newline,
 }
 
@@ -43,7 +43,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
 
     pub(crate) fn fail(&mut self, msg: &[u8]) {
         let prefix = match self.format {
-            Format::Yes => b"\n".as_slice(),
+            Format::Terminal => b"\n".as_slice(),
             Format::Newline | Format::No => b"".as_slice(),
         };
         drop(self.out.write(prefix));
@@ -57,7 +57,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
 
 impl<W: Write + ?Sized> Drop for Progress<'_, W> {
     fn drop(&mut self) {
-        if !self.done && matches!(self.format, Format::Yes) {
+        if !self.done && matches!(self.format, Format::Terminal) {
             drop(self.out.write(b"\n"));
         }
     }
@@ -65,7 +65,7 @@ impl<W: Write + ?Sized> Drop for Progress<'_, W> {
 
 pub(crate) fn prefix(format: Format) -> &'static str {
     match format {
-        Format::Yes => "\x1b[2K\r",
+        Format::Terminal => "\x1b[2K\r",
         Format::Newline | Format::No => "",
     }
 }
@@ -91,13 +91,13 @@ pub(crate) fn report_line(
     if msg.is_empty() {
         match format {
             Format::No => (),
-            Format::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
+            Format::Terminal => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
             Format::Newline => drop(writeln!(out, "[{completed}/{total}]")),
         }
     } else {
         match format {
             Format::No => (),
-            Format::Yes => {
+            Format::Terminal => {
                 let shorter = &msg[0..cmp::min(60, msg.len())];
                 drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
             }
