@@ -304,11 +304,13 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         Ok(false) => Ok(RunResult::Errors),
         Err(e) => {
             // Write the final newline that report_result would otherwise handle
-            drop(out.write(b"\n"));
+            if matches!(config.show_progress, exec::ProgressFormat::Yes) {
+                drop(out.write(b"\n"));
+            }
             Err(e)
         }
     }?;
-    report_result(&result, out);
+    report_result(config.show_progress, &result, out);
     then_else(config, &result)?;
     Ok(result)
 }
@@ -470,19 +472,27 @@ fn watch(
     }
 }
 
-fn report_result(res: &RunResult, out: &mut (impl Write + ?Sized)) {
+fn report_result(
+    progress_format: exec::ProgressFormat,
+    res: &RunResult,
+    out: &mut (impl Write + ?Sized),
+) {
+    let prefix = match progress_format {
+        exec::ProgressFormat::Yes => "\x1b[2K\r",
+        exec::ProgressFormat::Newline | exec::ProgressFormat::No => "",
+    };
     match res {
         RunResult::AllGood { cmds, files: 0 } => {
             debug_assert_eq!(*cmds, 0);
-            drop(writeln!(out, "\x1b[2K\r[{cmds}/{cmds}] 0 files linted"));
+            drop(writeln!(out, "{prefix}[{cmds}/{cmds}] 0 files linted"));
         }
         RunResult::AllGood { cmds, files: 1 } => {
-            drop(writeln!(out, "\x1b[2K\r[{cmds}/{cmds}] 1 file linted"));
+            drop(writeln!(out, "{prefix}[{cmds}/{cmds}] 1 file linted"));
         }
         RunResult::AllGood { cmds, files } => {
             drop(writeln!(
                 out,
-                "\x1b[2K\r[{cmds}/{cmds}] {files} files linted"
+                "{prefix}[{cmds}/{cmds}] {files} files linted"
             ));
         }
         RunResult::Errors => (), // output is mirrored to std{out,err}
