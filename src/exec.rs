@@ -142,7 +142,12 @@ fn reporter(
                 }
             }
             Ok(ReporterEvent::Failed { output }) => {
-                drop(out.write(b"\nCommand failed:"));
+                let prefix = match format {
+                    ProgressFormat::Yes => b"\n".as_slice(),
+                    ProgressFormat::Newline | ProgressFormat::No => b"".as_slice(),
+                };
+                drop(out.write(prefix));
+                drop(out.write(b"Command failed:"));
                 drop(out.write_all(&output));
             }
             Ok(ReporterEvent::Done { cmd }) => {

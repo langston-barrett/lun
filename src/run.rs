@@ -216,7 +216,9 @@ fn mk_config(
     let tools = match filter_tools(run, config, mode, cli.log.color) {
         Ok(t) => t,
         Err(e) => {
-            drop(out.write(b"\n"));
+            if matches!(show_progress, exec::ProgressFormat::Yes) {
+                drop(out.write(b"\n"));
+            }
             return Err(e);
         }
     };
