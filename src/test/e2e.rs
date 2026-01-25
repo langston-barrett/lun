@@ -269,6 +269,8 @@ fn test_file(name: &str) {
     run_test(&path).unwrap();
 }
 
+// Gives a different error message on macOS
+#[cfg(target_os = "linux")]
 #[test]
 fn ux_err_bogus_command() {
     test_file("ux-err-bogus-command");
