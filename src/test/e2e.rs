@@ -323,3 +323,8 @@ fn ux_noop() {
 fn ux_success() {
     test_file("ux-success");
 }
+
+#[test]
+fn ux_known() {
+    test_file("ux-known");
+}

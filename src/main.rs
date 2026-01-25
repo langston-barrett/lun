@@ -98,6 +98,20 @@ pub(crate) fn go(
             warn::warns(warn.as_deref())?;
             Ok(true)
         }
+        cli::Command::Known => {
+            #[derive(serde::Serialize)]
+            struct KnownTools {
+                linter: Vec<config::Linter>,
+                formatter: Vec<config::Formatter>,
+            }
+            let tools = KnownTools {
+                linter: known::known_linters(),
+                formatter: known::known_formatters(),
+            };
+            let toml = toml::to_string_pretty(&tools)?;
+            write!(out, "{toml}")?;
+            Ok(true)
+        }
     }
 }
 
