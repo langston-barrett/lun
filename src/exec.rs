@@ -50,7 +50,7 @@ pub(crate) fn exec(
     let failed = AtomicBool::new(false);
 
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
-        s.spawn(|| reporter(num_threads, rx, Progress::new(format, n_batches, out)));
+        s.spawn(|| reporter(num_threads, rx, Progress::new(format, Some(n_batches), out)));
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
             let tx = tx.clone();
@@ -146,7 +146,7 @@ fn reporter<W: Write + ?Sized>(
 
                 if let Some(current) = &current_cmd {
                     progress.report(current);
-                } else if progress.completed + 1 < progress.total {
+                } else if progress.total.is_some_and(|t| progress.completed + 1 < t) {
                     progress.report("");
                 }
             }

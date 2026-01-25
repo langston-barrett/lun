@@ -11,13 +11,13 @@ pub(crate) enum Format {
 pub(crate) struct Progress<'a, W: Write + ?Sized> {
     format: Format,
     pub(crate) completed: usize,
-    pub(crate) total: usize,
+    pub(crate) total: Option<usize>,
     out: &'a mut W,
     done: bool,
 }
 
 impl<'a, W: Write + ?Sized> Progress<'a, W> {
-    pub(crate) fn new(format: Format, total: usize, out: &'a mut W) -> Self {
+    pub(crate) fn new(format: Format, total: Option<usize>, out: &'a mut W) -> Self {
         Self {
             format,
             completed: 0,
@@ -31,6 +31,12 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
         self.completed += 1;
     }
 
+    /// Report progress at the current completed position.
+    pub(crate) fn write(&mut self, msg: &str) {
+        report_line(self.format, self.completed, self.total, msg, self.out);
+    }
+
+    /// Report progress at completed+1 (showing the item being worked on).
     pub(crate) fn report(&mut self, msg: &str) {
         report_line(self.format, self.completed + 1, self.total, msg, self.out);
     }
@@ -67,10 +73,21 @@ pub(crate) fn prefix(format: Format) -> &'static str {
 pub(crate) fn report_line(
     format: Format,
     completed: usize,
-    total: usize,
+    total: Option<usize>,
     msg: &str,
     out: &mut (impl Write + ?Sized),
 ) {
+    struct Total(Option<usize>);
+    impl std::fmt::Display for Total {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self.0 {
+                Some(n) => write!(f, "{n}"),
+                None => write!(f, "?"),
+            }
+        }
+    }
+    let total = Total(total);
+
     if msg.is_empty() {
         match format {
             Format::No => (),
