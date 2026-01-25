@@ -178,15 +178,17 @@ pub(crate) fn report(
         match format {
             ProgressFormat::No => (),
             ProgressFormat::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
-            ProgressFormat::Newline => drop(writeln!(out, "\x1b[2K\r[{completed}/{total}]")),
+            ProgressFormat::Newline => drop(writeln!(out, "[{completed}/{total}]")),
         }
     } else {
-        let shorter = &cmd[0..cmp::min(60, cmd.len())];
         match format {
             ProgressFormat::No => (),
-            ProgressFormat::Yes => drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}")),
+            ProgressFormat::Yes => {
+                let shorter = &cmd[0..cmp::min(60, cmd.len())];
+                drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
+            }
             ProgressFormat::Newline => {
-                drop(writeln!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
+                drop(writeln!(out, "[{completed}/{total}] {cmd}"));
             }
         }
     }
