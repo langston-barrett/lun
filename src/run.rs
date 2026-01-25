@@ -16,7 +16,9 @@ use tracing::{debug, trace, warn};
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, config, exec, file, ninja, plan, staged, tool,
+    cli, config, exec, file, ninja, plan, progress,
+    progress::Format,
+    staged, tool,
     warn::{self, warns::Warns},
 };
 
@@ -48,7 +50,7 @@ pub(crate) fn num_cores(cores: Option<NonZeroUsize>) -> NonZeroUsize {
 fn collect_files(
     cli: &cli::Cli,
     run: &cli::Run,
-    progress_format: exec::ProgressFormat,
+    progress_format: Format,
     out: &mut (impl Write + ?Sized),
     cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
@@ -173,7 +175,7 @@ struct Config {
     no_capture: bool,
     no_cache: bool,
     tools: Vec<tool::Tool>,
-    show_progress: exec::ProgressFormat,
+    show_progress: Format,
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
@@ -194,12 +196,12 @@ fn mk_config(
         io::stderr().is_terminal()
     };
     let show_progress = if !is_a_tty || cli.log.quiet < cli.log.verbose {
-        exec::ProgressFormat::Newline
+        Format::Newline
     } else if cli.log.quiet == cli.log.verbose {
         // verbosity == info
-        exec::ProgressFormat::Yes
+        Format::Yes
     } else {
-        exec::ProgressFormat::No
+        Format::No
     };
     let refs = if run.no_refs || run.fresh {
         Vec::new()
@@ -216,7 +218,7 @@ fn mk_config(
     let tools = match filter_tools(run, config, mode, cli.log.color) {
         Ok(t) => t,
         Err(e) => {
-            if matches!(show_progress, exec::ProgressFormat::Yes) {
+            if matches!(show_progress, Format::Yes) {
                 drop(out.write(b"\n"));
             }
             return Err(e);
@@ -306,7 +308,7 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         Ok(false) => Ok(RunResult::Errors),
         Err(e) => {
             // Write the final newline that report_result would otherwise handle
-            if matches!(config.show_progress, exec::ProgressFormat::Yes) {
+            if matches!(config.show_progress, Format::Yes) {
                 drop(out.write(b"\n"));
             }
             Err(e)
@@ -474,15 +476,8 @@ fn watch(
     }
 }
 
-fn report_result(
-    progress_format: exec::ProgressFormat,
-    res: &RunResult,
-    out: &mut (impl Write + ?Sized),
-) {
-    let prefix = match progress_format {
-        exec::ProgressFormat::Yes => "\x1b[2K\r",
-        exec::ProgressFormat::Newline | exec::ProgressFormat::No => "",
-    };
+fn report_result(progress_format: Format, res: &RunResult, out: &mut (impl Write + ?Sized)) {
+    let prefix = progress::prefix(progress_format);
     match res {
         RunResult::AllGood { cmds, files: 0 } => {
             debug_assert_eq!(*cmds, 0);
