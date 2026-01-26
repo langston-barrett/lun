@@ -6,6 +6,7 @@ use anyhow::bail;
 use tracing::{error, warn};
 
 use crate::config;
+use crate::git;
 use crate::known;
 
 pub(crate) mod group;
@@ -228,8 +229,8 @@ pub(crate) fn check_mtime(
 
 pub(crate) fn check_refs(
     lints: &Warns,
-    refs_cli: &[String],
-    refs_config: &[String],
+    refs_cli: &[git::Ref],
+    refs_config: &[git::Ref],
 ) -> anyhow::Result<()> {
     let level = lints.level(Warn::Refs);
     if matches!(level, level::Level::Allow) {

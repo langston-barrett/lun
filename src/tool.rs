@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use globset::GlobSet;
 
 use crate::{config::Granularity, file::Xxhash};
@@ -14,7 +16,8 @@ pub(crate) struct Tool {
     pub(crate) ignore: Option<GlobSet>,
     pub(crate) granularity: Granularity,
     pub(crate) stamp: Stamp,
-    pub(crate) cd: Option<std::path::PathBuf>,
+    pub(crate) cd: Option<PathBuf>,
+    pub(crate) configs: Vec<PathBuf>,
 }
 
 impl Tool {

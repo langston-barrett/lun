@@ -10,7 +10,7 @@ use anyhow::{Context as _, Result};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tracing::debug;
 
-use crate::{file, known, run::RunMode, tool};
+use crate::{file, git, known, run::RunMode, tool};
 
 pub(crate) const CONFIG_FILE_NAME: &str = "lun.toml";
 
@@ -89,7 +89,7 @@ pub(crate) struct Config {
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
-    pub(crate) refs: Vec<String>,
+    pub(crate) refs: Vec<git::Ref>,
 
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
@@ -374,6 +374,7 @@ impl Linter {
             granularity: self.tool.granularity,
             stamp,
             cd: self.tool.cd,
+            configs: self.tool.configs,
         })
     }
 }
@@ -409,6 +410,7 @@ impl Formatter {
             granularity: self.tool.granularity,
             stamp,
             cd: self.tool.cd,
+            configs: self.tool.configs,
         })
     }
 }

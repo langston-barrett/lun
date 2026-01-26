@@ -371,6 +371,7 @@ fn test(path: &'static str) {
             &tool,
             &files,
             &[],
+            None,
             cores,
             run.no_batch,
             false,
