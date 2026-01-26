@@ -258,7 +258,7 @@ fn parse_test_file_debug() {
             args: [
                 "run",
             ],
-            expected_output: "[0/?] Collecting files\n[1/1] echo <TEMP>/lun.toml\n[1/1] 1 file linted",
+            expected_output: "[0/?] Collecting files\n[1/1] Planning\n[1/1] echo <TEMP>/lun.toml\n[1/1] 1 file linted",
             expected_output_line: 23,
         }"#]]
     .assert_eq(&debug_output);
