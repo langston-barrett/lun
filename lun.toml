@@ -33,6 +33,7 @@ name = "ttlint"
 [[tool]]
 name = "ty"
 configs = []
+granularity = "individual"
 
 [[tool]]
 name = "typos"
