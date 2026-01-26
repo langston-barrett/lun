@@ -6,6 +6,7 @@
 
 - Add `bash -n`, `jq null`, and `make -n` to known linters
 - Add `known` subcommand that prints known tools
+- Search for configuration file in parent directories
 
 ## [0.7.1] - 2026-01-19
 
