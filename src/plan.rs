@@ -5,16 +5,18 @@ use tracing::{debug, trace};
 
 use crate::{cache, cmd, file as files, git, job, progress::Progress, tool};
 
-fn is_match(tool: &Arc<tool::Tool>, f: &files::File) -> bool {
+fn is_match(tool: &Arc<tool::Tool>, f: &files::File, cwd: &Path) -> bool {
     let path = f.path.as_path();
     if !tool.files.is_match(path) {
         return false;
     }
-    if let Some(ignore) = &tool.ignore
-        && ignore.is_match(path)
-    {
-        debug!("{}: ignored", f.path.display());
-        return false;
+    if let Some(ignore) = &tool.ignore {
+        // Try matching against the path as-is, or stripped of cwd prefix for relative patterns
+        let rel_path = path.strip_prefix(cwd).unwrap_or(path);
+        if ignore.is_match(path) || ignore.is_match(rel_path) {
+            debug!("{}: ignored", f.path.display());
+            return false;
+        }
     }
     trace!("{}: match", f.path.display());
     true
@@ -69,6 +71,7 @@ fn tool_commands<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     cache: &mut C,
     refs: &[git::Ref],
     mtime_enabled: bool,
+    cwd: &Path,
     progress: &mut Progress<'_, W>,
 ) -> Option<cmd::Command> {
     debug!("Planning for {}", tool.display_name());
@@ -80,7 +83,7 @@ fn tool_commands<C: cache::Cache + ?Sized, W: Write + ?Sized>(
         .filter_map(|f| {
             progress.increment();
             progress.write("Planning");
-            if is_match(&tool, f) && need_file(cache, &refs, mtime_enabled, &tool, f) {
+            if is_match(&tool, f, cwd) && need_file(cache, &refs, mtime_enabled, &tool, f) {
                 Some(f.clone())
             } else {
                 None
@@ -105,6 +108,7 @@ pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     files: &[files::File],
     refs: &[git::Ref],
     config_path: Option<&Path>,
+    cwd: &Path,
     cores: NonZeroUsize,
     no_batch: bool,
     mtime_enabled: bool,
@@ -122,7 +126,7 @@ pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     let mut files = Vec::from(files);
     let mut commands = Vec::with_capacity(tools.len());
     for tool in tools {
-        let Some(cmd) = tool_commands(tool, &mut files, cache, &refs, mtime_enabled, progress)
+        let Some(cmd) = tool_commands(tool, &mut files, cache, &refs, mtime_enabled, cwd, progress)
         else {
             debug!(
                 "No needed files for {}",

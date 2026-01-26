@@ -467,7 +467,8 @@ fn build_ignore_globset(patterns: &[String], tool_name: &str) -> Result<Option<G
     }
     let mut builder = GlobSetBuilder::new();
     for pattern in patterns {
-        let glob = Glob::new(pattern)
+        let normalized = pattern.strip_prefix("./").unwrap_or(pattern);
+        let glob = Glob::new(normalized)
             .with_context(|| format!("Invalid `ignore` glob `{pattern}` for `{tool_name}`"))?;
         builder.add(glob);
     }
