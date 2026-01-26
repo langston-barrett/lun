@@ -15,6 +15,7 @@ use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMod
 use tracing::{debug, trace, warn};
 
 use crate::{
+    Paths,
     cache::{self, CacheWriter},
     cli, config, exec, file, ninja, plan, progress,
     progress::{Format, Progress},
@@ -48,17 +49,16 @@ pub(crate) fn num_cores(cores: Option<NonZeroUsize>) -> NonZeroUsize {
 }
 
 fn collect_files(
-    cli: &cli::Cli,
+    paths: &Paths,
     run: &cli::Run,
     progress_format: Format,
     out: &mut (impl Write + ?Sized),
     cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
-    let cache_dir = cwd.join(&cli.cache);
     let mut files = if run.staged {
         staged::collect_staged_files()?
     } else {
-        file::collect_files(cwd, &cache_dir, progress_format, out)?
+        file::collect_files(cwd, &paths.cache, progress_format, out)?
     };
     filter_files(&mut files, &run.only_files, &run.skip_files)?;
     Ok(files)
@@ -184,6 +184,7 @@ struct Config {
 
 fn mk_config(
     cli: &cli::Cli,
+    paths: &Paths,
     run: &cli::Run,
     config: &config::Config,
     out: &mut (impl Write + ?Sized),
@@ -211,8 +212,7 @@ fn mk_config(
         config.refs.clone()
     };
     let mtime = config.mtime && !run.no_mtime;
-    let cache_dir = cwd.join(&cli.cache);
-    let files = collect_files(cli, run, show_progress, out, cwd)?;
+    let files = collect_files(paths, run, show_progress, out, cwd)?;
     // After collect_files succeeds, the progress line has been written.
     // If anything fails from here, we need to print a newline first.
     let tools = match filter_tools(run, config, mode, cli.log.color) {
@@ -226,7 +226,7 @@ fn mk_config(
     };
     Ok(Config {
         refs,
-        cache: cache_dir,
+        cache: paths.cache.clone(),
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
         files,
@@ -378,6 +378,7 @@ fn then_else(config: &Config, result: &RunResult) -> Result<(), anyhow::Error> {
 
 pub(crate) fn go(
     cli: &cli::Cli,
+    paths: &Paths,
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
@@ -385,17 +386,16 @@ pub(crate) fn go(
     cwd: &Path,
 ) -> std::result::Result<RunResult, anyhow::Error> {
     lint(run_cli, config, lints)?;
-    let cache_dir = cwd.join(&cli.cache);
-    fs::create_dir_all(&cache_dir)?; // just to create the dir
+    fs::create_dir_all(&paths.cache)?; // just to create the dir
     if run_cli.watch {
-        watch(cli, run_cli, config, lints, out, cwd)?;
+        watch(cli, paths, run_cli, config, lints, out, cwd)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
-        let config = mk_config(cli, run_cli, config, out, cwd)?;
+        let config = mk_config(cli, paths, run_cli, config, out, cwd)?;
         let result = run(&config, lints, out);
         #[cfg(debug_assertions)]
         {
-            let debug_cache = cache_dir.join("debug");
+            let debug_cache = paths.cache.join("debug");
             drop(fs::remove_dir_all(&debug_cache));
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
@@ -432,17 +432,20 @@ fn clear_term() {
 // https://github.com/astral-sh/ruff/blob/main/crates/ty_project/src/watch/watcher.rs
 fn watch(
     cli: &cli::Cli,
+    paths: &Paths,
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
     out: &mut (impl Write + Send),
     cwd: &Path,
 ) -> Result<bool> {
-    let mut config = mk_config(cli, run_cli, config, out, cwd)?;
+    let mut config = mk_config(cli, paths, run_cli, config, out, cwd)?;
     run(&config, lints, out)?;
 
-    let initial_config_hash = fs::read(&cli.config)
-        .ok()
+    let initial_config_hash = paths
+        .config
+        .as_ref()
+        .and_then(|p| fs::read(p).ok())
         .map(|contents| file::compute_hash(&contents));
 
     let (tx, rx) = mpsc::channel();
@@ -471,9 +474,9 @@ fn watch(
         }
         if needed && last_run.elapsed() > time::Duration::from_millis(50) {
             clear_term();
-            warn_if_config_changed(&cli.config, initial_config_hash);
+            warn_if_config_changed(paths.config.as_deref(), initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
-            config.files = collect_files(cli, run_cli, config.show_progress, out, cwd)?;
+            config.files = collect_files(paths, run_cli, config.show_progress, out, cwd)?;
             run(&config, lints, out)?;
         }
         last_run = time::Instant::now();
@@ -520,9 +523,10 @@ fn need_rerun(event: &notify::Event) -> bool {
     !all_paths_ignored
 }
 
-fn warn_if_config_changed(config: &Path, initial_config_hash: Option<file::Xxhash>) {
-    if let Some(initial_hash) = initial_config_hash
-        && let Ok(content) = fs::read(config)
+fn warn_if_config_changed(config: Option<&Path>, initial_config_hash: Option<file::Xxhash>) {
+    if let Some(config_path) = config
+        && let Some(initial_hash) = initial_config_hash
+        && let Ok(content) = fs::read(config_path)
     {
         let hash = file::compute_hash(&content);
         if hash != initial_hash {

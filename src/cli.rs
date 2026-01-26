@@ -8,12 +8,12 @@ pub(crate) mod warn;
 #[command(about = "Run linters fast")]
 #[command(version)]
 pub(crate) struct Cli {
-    /// Path to the cache directory
-    #[arg(long, default_value = ".lun")]
-    pub(crate) cache: PathBuf,
-    /// Path to the configuration file
-    #[arg(short, long, default_value = "lun.toml")]
-    pub(crate) config: PathBuf,
+    /// Path to the cache directory [default: .lun relative to config file]
+    #[arg(long)]
+    pub(crate) cache: Option<PathBuf>,
+    /// Path to the configuration file [default: lun.toml, searched in parent directories]
+    #[arg(short, long)]
+    pub(crate) config: Option<PathBuf>,
     #[command(flatten)]
     pub(crate) log: log::LogOptions,
     #[command(flatten)]

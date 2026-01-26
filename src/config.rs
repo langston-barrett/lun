@@ -12,6 +12,8 @@ use tracing::debug;
 
 use crate::{file, known, run::RunMode, tool};
 
+pub(crate) const CONFIG_FILE_NAME: &str = "lun.toml";
+
 fn default<T: Default + PartialEq>(t: &T) -> bool {
     *t == Default::default()
 }
@@ -98,6 +100,22 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    /// Search for a config file starting from the current directory and walking up.
+    pub(crate) fn find() -> Option<PathBuf> {
+        let mut current = env::current_dir().ok()?;
+        loop {
+            let config_path = current.join(CONFIG_FILE_NAME);
+            if config_path.is_file() {
+                debug!("Found config at {}", config_path.display());
+                return Some(config_path);
+            }
+            if !current.pop() {
+                debug!("No config found in any parent directory");
+                return None;
+            }
+        }
+    }
+
     pub(crate) fn load(path: &Path) -> Result<Option<Self>> {
         debug!("Loading config file from {}", path.display());
         let r = fs::read_to_string(path);
