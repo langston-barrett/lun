@@ -1,5 +1,5 @@
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser as _;
 use expect_test::expect;
@@ -11,9 +11,10 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
     let paths = crate::Paths {
         config: Some(PathBuf::from("test.toml")),
         cache: PathBuf::from(".lun"),
+        cwd: PathBuf::from("."),
     };
     let config = toml::from_str(config).unwrap();
-    crate::go(cli, &paths, config, &mut io::sink(), Path::new(".")).map(|b| assert!(b))
+    crate::go(cli, &paths, config, &mut io::sink()).map(|b| assert!(b))
 }
 
 #[test]
