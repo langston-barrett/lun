@@ -8,10 +8,12 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
     let cli = crate::cli::Cli::try_parse_from(std::iter::once("lun").chain(flags.iter().copied()))
         .map_err(|e| e.to_string())
         .unwrap();
-    let mut cli = cli;
-    cli.config = PathBuf::from("test.toml");
+    let paths = crate::Paths {
+        config: Some(PathBuf::from("test.toml")),
+        cache: PathBuf::from(".lun"),
+    };
     let config = toml::from_str(config).unwrap();
-    crate::go(cli, config, &mut io::sink(), Path::new(".")).map(|b| assert!(b))
+    crate::go(cli, &paths, config, &mut io::sink(), Path::new(".")).map(|b| assert!(b))
 }
 
 #[test]
