@@ -162,6 +162,7 @@ pub(crate) fn collect_files(
             path
         };
         if let Ok(file) = File::new(path.to_path_buf()) {
+            debug_assert!(!strip || !file.path.starts_with("./"));
             files.push(file);
         } else {
             debug!("Failed to process {}", path.display());

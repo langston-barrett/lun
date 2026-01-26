@@ -372,6 +372,7 @@ fn test(path: &'static str) {
             &files,
             &[],
             None,
+            Path::new("."),
             cores,
             run.no_batch,
             false,

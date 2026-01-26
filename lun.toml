@@ -1,6 +1,5 @@
-# cargo run -- init -r origin/main -t 'cargo clippy' -t 'cargo fmt' -t mdlynx -t shellcheck -t tagref -t ttlint -t typos -t zizmor
-
 refs = ["origin/main"]
+ignore = ["./.claude/skills/skill-creator/**/*"]
 
 [[tool]]
 name = "cargo clippy"
@@ -14,6 +13,14 @@ configs = ["Cargo.toml"]
 name = "mdlynx"
 
 [[tool]]
+name = "ruff check"
+configs = []
+
+[[tool]]
+name = "ruff format"
+configs = []
+
+[[tool]]
 name = "shellcheck"
 configs = []
 
@@ -22,6 +29,10 @@ name = "tagref"
 
 [[tool]]
 name = "ttlint"
+
+[[tool]]
+name = "ty"
+configs = []
 
 [[tool]]
 name = "typos"

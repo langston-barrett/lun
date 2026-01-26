@@ -333,3 +333,8 @@ fn ux_success() {
 fn ux_known() {
     test_file("ux-known");
 }
+
+#[test]
+fn global_ignore() {
+    test_file("global-ignore");
+}
