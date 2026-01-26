@@ -17,7 +17,7 @@ use tracing::{debug, trace, warn};
 use crate::{
     Paths,
     cache::{self, CacheWriter},
-    cli, config, exec, file, ninja, plan, progress,
+    cli, config, exec, file, git, ninja, plan, progress,
     progress::{Format, Progress},
     staged, tool,
     warn::{self, warns::Warns},
@@ -163,8 +163,9 @@ fn filter_tools(
 
 #[derive(Debug, Clone)]
 struct Config {
-    refs: Vec<String>,
+    refs: Vec<git::Ref>,
     cache: PathBuf,
+    config_path: PathBuf,
     cores: NonZeroUsize,
     dry_run: bool,
     files: Vec<file::File>,
@@ -225,6 +226,7 @@ fn mk_config(
     Ok(Config {
         refs,
         cache: paths.cache.clone(),
+        config_path: paths.config.clone().unwrap_or_default(),
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
         files,
@@ -279,6 +281,7 @@ fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<
         &config.tools,
         &config.files,
         &config.refs,
+        Some(config.config_path.as_path()),
         config.cores,
         config.no_batch,
         config.mtime,

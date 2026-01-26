@@ -1,5 +1,7 @@
 use std::{num::NonZeroUsize, path::PathBuf};
 
+use crate::git;
+
 pub(crate) mod log;
 pub(crate) mod warn;
 
@@ -174,7 +176,7 @@ pub(crate) struct Run {
     pub(crate) then: Option<String>,
     /// Git refs assumed to be good (can be used multiple times)
     #[arg(long, action = clap::ArgAction::Append)]
-    pub(crate) refs: Vec<String>,
+    pub(crate) refs: Vec<git::Ref>,
     /// Watch for file changes and re-run automatically
     #[arg(long)]
     pub(crate) watch: bool,
@@ -197,7 +199,7 @@ pub(crate) struct Init {
     pub(crate) no_mtime: bool,
     /// Git refs assumed to be good (can be used multiple times)
     #[arg(short, long, action = clap::ArgAction::Append)]
-    pub(crate) r#ref: Vec<String>,
+    pub(crate) r#ref: Vec<git::Ref>,
     /// Allow a warning (can be used multiple times)
     #[arg(short = 'A', long, action = clap::ArgAction::Append, value_name = "WARN")]
     pub(crate) allow: Vec<String>,

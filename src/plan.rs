@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::{num::NonZeroUsize, sync::Arc};
+use std::{num::NonZeroUsize, path::Path, sync::Arc};
 
 use tracing::{debug, trace};
 
@@ -23,7 +23,7 @@ fn is_match(tool: &Arc<tool::Tool>, f: &files::File) -> bool {
 // The workings of this function are described in `doc/cache.md`.
 fn need_file<C: cache::Cache + ?Sized>(
     cache: &mut C,
-    git_refs: &[String],
+    refs: &[git::Ref],
     mtime_enabled: bool,
     tool: &Arc<tool::Tool>,
     file: &mut files::File,
@@ -52,7 +52,7 @@ fn need_file<C: cache::Cache + ?Sized>(
             cache.done(&mtime_key);
         }
         false
-    } else if let Ok(true) = git::file_changed_from_refs(&file.path, git_refs) {
+    } else if let Ok(true) = git::file_changed_from_refs(&file.path, refs) {
         true
     } else {
         cache.done(&content_key);
@@ -67,20 +67,20 @@ fn tool_commands<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     tool: &tool::Tool,
     files: &mut [files::File],
     cache: &mut C,
-    git_refs: &[String],
+    refs: &[git::Ref],
     mtime_enabled: bool,
     progress: &mut Progress<'_, W>,
 ) -> Option<cmd::Command> {
     debug!("Planning for {}", tool.display_name());
     debug_assert!(!files.is_empty());
     let tool = Arc::new(tool.clone());
-
+    let refs = git::unchanged_refs_all(&tool.configs, refs);
     let files = files
         .iter_mut()
         .filter_map(|f| {
             progress.increment();
             progress.write("Planning");
-            if is_match(&tool, f) && need_file(cache, git_refs, mtime_enabled, &tool, f) {
+            if is_match(&tool, f) && need_file(cache, &refs, mtime_enabled, &tool, f) {
                 Some(f.clone())
             } else {
                 None
@@ -103,20 +103,26 @@ pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     cache: &mut C,
     tools: &[tool::Tool],
     files: &[files::File],
-    git_refs: &[String],
+    refs: &[git::Ref],
+    config_path: Option<&Path>,
     cores: NonZeroUsize,
     no_batch: bool,
     mtime_enabled: bool,
     progress: &mut Progress<'_, W>,
 ) -> Vec<cmd::Command> {
+    debug!("Collected {} files", files.len());
     if files.is_empty() {
         return Vec::new();
     }
-    debug!("Collected {} files", files.len());
+    let refs = match config_path {
+        Some(path) => git::unchanged_refs_all(&[path], refs),
+        None => refs.to_vec(),
+    };
+    debug!("{} refs with matching config file", refs.len());
     let mut files = Vec::from(files);
     let mut commands = Vec::with_capacity(tools.len());
     for tool in tools {
-        let Some(cmd) = tool_commands(tool, &mut files, cache, git_refs, mtime_enabled, progress)
+        let Some(cmd) = tool_commands(tool, &mut files, cache, &refs, mtime_enabled, progress)
         else {
             debug!(
                 "No needed files for {}",
