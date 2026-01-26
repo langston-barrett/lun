@@ -2,8 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.8.1] - 2026-01-26
 
+[0.8.1]: https://github.com/langston-barrett/lun/releases/tag/v0.8.1
 - Fix bug in `ignore`
 
 ## [0.8.0] - 2026-01-26
