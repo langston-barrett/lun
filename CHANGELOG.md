@@ -2,11 +2,14 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## [Unreleased]
+## [0.8.0] - 2026-01-26
+
+[0.8.0]: https://github.com/langston-barrett/lun/releases/tag/v0.8.0
 
 - Add `bash -n`, `jq null`, and `make -n` to known linters
 - Add `known` subcommand that prints known tools
 - Search for configuration file in parent directories
+- Fixes and improvements for progress reporting
 
 ## [0.7.1] - 2026-01-19
 
