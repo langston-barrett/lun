@@ -153,11 +153,6 @@ def open_pr_in_browser(pr_url: str) -> None:
     webbrowser.open(pr_url)
 
 
-def wait_for_user_confirmation() -> None:
-    """Wait for user to press ENTER."""
-    input("\nPress ENTER if the PR looks good to continue with merge...")
-
-
 def wait_for_ci(pr_url: str) -> None:
     """Wait for all CI checks to pass on the PR."""
     # Extract PR number from URL
@@ -229,43 +224,21 @@ def main() -> int:
     print(f"New version: {new_version}", file=sys.stderr)
     print(file=sys.stderr)
 
-    # Prepare release branch
     git_prepare_branch()
-
-    # Update files
     update_cargo_toml(cargo_path, current_version, new_version)
     update_changelog(changelog_path, new_version, project_name)
-
-    # Run checks
     run_checks()
-
-    # Commit changes
     git_commit(new_version, cargo_path, changelog_path)
 
-    # Create PR
     pr_url = create_pr(new_version)
     print(f"\nPR created: {pr_url}", file=sys.stderr)
-
-    # Open in browser
     open_pr_in_browser(pr_url)
-
-    # Wait for user confirmation
-    wait_for_user_confirmation()
-
-    # Wait for CI and merge
     wait_for_ci(pr_url)
     merge_pr(pr_url)
 
-    # Update local main
     checkout_main_and_pull()
-
-    # Tag and push
     create_and_push_tag(new_version)
-
-    # Wait for tag CI
     wait_for_tag_ci(new_version)
-
-    # Publish release
     publish_draft_release(new_version)
 
     return 0
