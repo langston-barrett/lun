@@ -162,6 +162,7 @@ fn run_test(test_path: &Path) -> Result<()> {
     let paths = crate::Paths {
         config: Some(config_path.clone()),
         cache: temp_path.join(".lun"),
+        cwd: temp_path.to_path_buf(),
     };
     let config = match crate::config::Config::load(&config_path) {
         Ok(c) => c,
@@ -199,7 +200,7 @@ fn run_test(test_path: &Path) -> Result<()> {
     let mut output_buffer: Vec<u8> = Vec::new();
 
     // Run with the temp directory as working directory
-    let result = crate::go(cli, &paths, config, &mut output_buffer, temp_path);
+    let result = crate::go(cli, &paths, config, &mut output_buffer);
 
     // Get captured output and normalize escape sequences
     let captured = {

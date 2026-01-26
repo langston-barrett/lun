@@ -53,12 +53,11 @@ fn collect_files(
     run: &cli::Run,
     progress_format: Format,
     out: &mut (impl Write + ?Sized),
-    cwd: &Path,
 ) -> Result<Vec<file::File>, anyhow::Error> {
     let mut files = if run.staged {
         staged::collect_staged_files()?
     } else {
-        file::collect_files(cwd, &paths.cache, progress_format, out)?
+        file::collect_files(&paths.cwd, &paths.cache, progress_format, out)?
     };
     filter_files(&mut files, &run.only_files, &run.skip_files)?;
     Ok(files)
@@ -188,7 +187,6 @@ fn mk_config(
     run: &cli::Run,
     config: &config::Config,
     out: &mut (impl Write + ?Sized),
-    cwd: &Path,
 ) -> Result<Config> {
     let mode = RunMode::from(run);
     let is_a_tty = if cfg!(test) {
@@ -212,7 +210,7 @@ fn mk_config(
         config.refs.clone()
     };
     let mtime = config.mtime && !run.no_mtime;
-    let files = collect_files(paths, run, show_progress, out, cwd)?;
+    let files = collect_files(paths, run, show_progress, out)?;
     // After collect_files succeeds, the progress line has been written.
     // If anything fails from here, we need to print a newline first.
     let tools = match filter_tools(run, config, mode, cli.log.color) {
@@ -383,15 +381,14 @@ pub(crate) fn go(
     config: &config::Config,
     lints: &Warns,
     out: &mut (impl Write + Send),
-    cwd: &Path,
 ) -> std::result::Result<RunResult, anyhow::Error> {
     lint(run_cli, config, lints)?;
     fs::create_dir_all(&paths.cache)?; // just to create the dir
     if run_cli.watch {
-        watch(cli, paths, run_cli, config, lints, out, cwd)?;
+        watch(cli, paths, run_cli, config, lints, out)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
-        let config = mk_config(cli, paths, run_cli, config, out, cwd)?;
+        let config = mk_config(cli, paths, run_cli, config, out)?;
         let result = run(&config, lints, out);
         #[cfg(debug_assertions)]
         {
@@ -437,9 +434,8 @@ fn watch(
     config: &config::Config,
     lints: &Warns,
     out: &mut (impl Write + Send),
-    cwd: &Path,
 ) -> Result<bool> {
-    let mut config = mk_config(cli, paths, run_cli, config, out, cwd)?;
+    let mut config = mk_config(cli, paths, run_cli, config, out)?;
     run(&config, lints, out)?;
 
     let initial_config_hash = paths
@@ -460,7 +456,7 @@ fn watch(
     .context("Failed to create file watcher")?;
 
     watcher
-        .watch(cwd, RecursiveMode::Recursive)
+        .watch(&paths.cwd, RecursiveMode::Recursive)
         .context("Failed to start watching directory")?;
 
     debug!("Watching for file changes...");
@@ -476,7 +472,7 @@ fn watch(
             clear_term();
             warn_if_config_changed(paths.config.as_deref(), initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
-            config.files = collect_files(paths, run_cli, config.show_progress, out, cwd)?;
+            config.files = collect_files(paths, run_cli, config.show_progress, out)?;
             run(&config, lints, out)?;
         }
         last_run = time::Instant::now();

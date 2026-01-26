@@ -37,20 +37,22 @@ use tracing::{debug, trace};
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-/// Resolved paths for config and cache.
+/// Resolved paths for config, cache, and working directory.
 #[derive(Debug)]
 pub(crate) struct Paths {
     pub(crate) config: Option<PathBuf>,
     pub(crate) cache: PathBuf,
+    pub(crate) cwd: PathBuf,
 }
 
 impl Paths {
-    /// Resolve config and cache paths from CLI options.
+    /// Resolve config, cache, and cwd paths from CLI options.
     ///
     /// - If `--config` is specified, use that path
     /// - Otherwise, search parent directories for `lun.toml`
     /// - If `--cache` is specified, use that path
     /// - Otherwise, use `.lun` relative to the config file's directory (or cwd if no config)
+    /// - `cwd` is set to the current working directory
     pub(crate) fn resolve(cli: &cli::Cli) -> Self {
         let config = cli.config.clone().or_else(config::Config::find);
 
@@ -61,7 +63,9 @@ impl Paths {
                 .map_or_else(|| PathBuf::from(".lun"), |p| p.join(".lun"))
         });
 
-        Self { config, cache }
+        let cwd = PathBuf::from(".");
+
+        Self { config, cache, cwd }
     }
 }
 
@@ -70,7 +74,6 @@ pub(crate) fn go(
     paths: &Paths,
     config: Option<config::Config>,
     out: &mut (impl Write + Send),
-    cwd: &Path,
 ) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
     match &cli.command {
@@ -114,7 +117,7 @@ pub(crate) fn go(
         cli::Command::Run(run) => {
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(&cli, paths, run, &config, &lints, out, cwd).map(bool::from)
+            run::go(&cli, paths, run, &config, &lints, out).map(bool::from)
         }
         cli::Command::Init(init) => {
             let config_path = paths
@@ -168,7 +171,7 @@ fn main() -> Result<()> {
         None => None,
     };
     trace!(?config);
-    let ok = go(cli, &paths, config, &mut io::stderr(), Path::new("."))?;
+    let ok = go(cli, &paths, config, &mut io::stderr())?;
     if !ok {
         process::exit(1);
     }
