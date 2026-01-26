@@ -124,7 +124,8 @@ def git_prepare_branch() -> None:
 
 def git_commit(version: Version, cargo_path: Path, changelog_path: Path) -> None:
     """Stage changes and commit with version message."""
-    run(["git", "add", "--", str(cargo_path), str(changelog_path)])
+    cargo_lock = cargo_path.parent / "Cargo.lock"
+    run(["git", "add", "--", str(cargo_path), str(cargo_lock), str(changelog_path)])
     run(["git", "commit", "-m", f"v{version}"])
 
 
