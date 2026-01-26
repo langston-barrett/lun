@@ -111,7 +111,7 @@ def update_changelog(
 
 def run_checks() -> None:
     """Run cargo clippy and cargo test."""
-    run(["cargo", "clippy", "--", "--all-targets", "--deny", "warnings"])
+    run(["cargo", "clippy", "--all-targets", "--", "--deny", "warnings"])
     run(["cargo", "test"])
 
 
