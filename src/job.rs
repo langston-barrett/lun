@@ -2,7 +2,7 @@ use std::{num::NonZero, process};
 
 use tracing::debug;
 
-use crate::{cmd, config::Granularity, file};
+use crate::{cmd, config::Args, file};
 
 pub(crate) fn display_cmd(c: &process::Command) -> String {
     format!(
@@ -39,8 +39,18 @@ fn unbatch(cmd: cmd::Command) -> Vec<cmd::Command> {
     if cmd.files.is_empty() {
         return Vec::new();
     }
-    if cmd.files.len() == 1 || cmd.tool.granularity == Granularity::Batch {
+    if cmd.files.len() == 1 || cmd.tool.args == Args::None || cmd.tool.args == Args::All {
         return vec![cmd];
+    }
+    if cmd.tool.args == Args::One {
+        return cmd
+            .files
+            .into_iter()
+            .map(|file| cmd::Command {
+                tool: cmd.tool.clone(),
+                files: vec![file],
+            })
+            .collect();
     }
     cmd.files
         .into_iter()
@@ -57,7 +67,20 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
         return Vec::new();
     }
     let cores = cores.get();
-    if cmd.files.len() == 1 || cmd.tool.granularity == Granularity::Batch || cores == 1 {
+    if cmd.files.len() == 1 || cmd.tool.args == Args::None || cmd.tool.args == Args::All {
+        return vec![cmd];
+    }
+    if cmd.tool.args == Args::One {
+        return cmd
+            .files
+            .into_iter()
+            .map(|file| cmd::Command {
+                tool: cmd.tool.clone(),
+                files: vec![file],
+            })
+            .collect();
+    }
+    if cores == 1 {
         return vec![cmd];
     }
     if cmd.files.len() < cores {
@@ -102,4 +125,172 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{file, tool};
+    use globset::GlobSetBuilder;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    fn make_test_tool(args: Args) -> Arc<tool::Tool> {
+        let mut builder = GlobSetBuilder::new();
+        builder.add(globset::Glob::new("*").unwrap());
+        Arc::new(tool::Tool {
+            name: Some("test".to_string()),
+            cmd: "test --".to_string(),
+            files: builder.build().unwrap(),
+            ignore: None,
+            args,
+            include_unchanged: false,
+            stamp: tool::Stamp(file::Xxhash(0)),
+            cd: None,
+            configs: Vec::new(),
+        })
+    }
+
+    fn make_test_file(path: &str, size: usize) -> file::File {
+        use xxhash_rust::xxh3::Xxh3;
+        let mut hasher = Xxh3::new();
+        hasher.update(path.as_bytes());
+        file::File {
+            path: PathBuf::from(path),
+            size,
+            metadata_stamp: file::Stamp(file::Xxhash(hasher.digest128())),
+            mtime_stamp: file::Stamp(file::Xxhash(0)),
+            content_stamp: Some(file::Stamp(file::Xxhash(0))),
+        }
+    }
+
+    #[test]
+    fn test_args_none_keeps_files_together() {
+        let tool = make_test_tool(Args::None);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let batches = unbatch(cmd);
+        // Args::None should keep all files in one batch
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].files.len(), 3);
+    }
+
+    #[test]
+    fn test_args_all_keeps_files_together() {
+        let tool = make_test_tool(Args::All);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let batches = unbatch(cmd);
+        // Args::All should keep all files in one batch
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].files.len(), 3);
+    }
+
+    #[test]
+    fn test_args_one_splits_files() {
+        let tool = make_test_tool(Args::One);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let batches = unbatch(cmd);
+        // Args::One should split into one file per batch
+        assert_eq!(batches.len(), 3);
+        assert_eq!(batches[0].files.len(), 1);
+        assert_eq!(batches[1].files.len(), 1);
+        assert_eq!(batches[2].files.len(), 1);
+    }
+
+    #[test]
+    fn test_args_many_splits_files_in_unbatch() {
+        let tool = make_test_tool(Args::Many);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let batches = unbatch(cmd);
+        // Args::Many in unbatch mode splits files
+        assert_eq!(batches.len(), 3);
+    }
+
+    #[test]
+    fn test_batch_respects_args_none() {
+        let tool = make_test_tool(Args::None);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let cores = NonZero::new(4).unwrap();
+        let batches = batch(cmd, cores);
+        // Args::None should keep all files together even with multiple cores
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].files.len(), 3);
+    }
+
+    #[test]
+    fn test_batch_respects_args_all() {
+        let tool = make_test_tool(Args::All);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let cores = NonZero::new(4).unwrap();
+        let batches = batch(cmd, cores);
+        // Args::All should keep all files together even with multiple cores
+        assert_eq!(batches.len(), 1);
+        assert_eq!(batches[0].files.len(), 3);
+    }
+
+    #[test]
+    fn test_batch_splits_args_one() {
+        let tool = make_test_tool(Args::One);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let cores = NonZero::new(4).unwrap();
+        let batches = batch(cmd, cores);
+        assert_eq!(batches.len(), 3);
+    }
+
+    #[test]
+    fn test_batch_splits_args_one_with_one_core() {
+        let tool = make_test_tool(Args::One);
+        let files = vec![
+            make_test_file("test1.rs", 100),
+            make_test_file("test2.rs", 100),
+            make_test_file("test3.rs", 100),
+        ];
+        let cmd = cmd::Command { tool, files };
+
+        let cores = NonZero::new(1).unwrap();
+        let batches = batch(cmd, cores);
+        // Args::One should split even with one core (unlike Args::Many)
+        assert_eq!(batches.len(), 3);
+    }
 }

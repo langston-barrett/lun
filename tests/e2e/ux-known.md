@@ -18,7 +18,7 @@ files = ["*.sh"]
 name = "cargo clippy"
 cmd = "cargo clippy --color={{color}} --all-targets -- --deny warnings"
 files = ["*.rs"]
-granularity = "batch"
+args = "none"
 configs = ["Cargo.toml"]
 fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
@@ -42,7 +42,7 @@ files = [
     "**/Makefile",
     "*.mk",
 ]
-granularity = "batch"
+args = "none"
 
 [[linter]]
 name = "mdlynx"
@@ -80,7 +80,8 @@ configs = [".shellcheckrc"]
 name = "tagref"
 cmd = "tagref check --"
 files = ["*"]
-granularity = "batch"
+args = "all"
+include_unchanged = true
 
 [[linter]]
 name = "ttlint"
@@ -92,7 +93,7 @@ fix = "ttlint --fix --"
 name = "ty"
 cmd = "ty check --"
 files = ["*.py"]
-granularity = "batch"
+args = "none"
 configs = [
     "pyproject.toml",
     "ty.toml",
@@ -123,7 +124,7 @@ fix = "zizmor --fix=safe --"
 name = "cargo fmt"
 cmd = "cargo fmt -- --color={{color}} --"
 files = ["*.rs"]
-granularity = "batch"
+args = "none"
 configs = [
     "Cargo.toml",
     "rustfmt.toml",

@@ -12,7 +12,7 @@ By default, image files (jpg, png, svg) are ignored.
 [[linter]]
 cmd = "lint --"
 files = ["*"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -41,7 +41,7 @@ no_default_ignores = true
 [[linter]]
 cmd = "lint --"
 files = ["*"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Output

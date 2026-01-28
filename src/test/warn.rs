@@ -26,7 +26,7 @@ fn unknown_tool_success() {
 name = "mylinter"
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -46,7 +46,7 @@ fn unknown_tool_failure() {
 name = "mylinter"
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
@@ -61,7 +61,7 @@ fn careful_success() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -75,7 +75,7 @@ fn careful_failure() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
@@ -92,7 +92,7 @@ mtime = false
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -106,7 +106,7 @@ fn mtime_failure() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
@@ -121,7 +121,7 @@ fn refs_success() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -135,7 +135,7 @@ fn refs_failure() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
@@ -150,7 +150,7 @@ fn unknown_warn_success() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -164,7 +164,7 @@ fn unknown_warn_failure() {
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());
@@ -179,7 +179,7 @@ fn no_files_success() {
 [[linter]]
 cmd = "lint --"
 files = []
-granularity = "individual"
+args = "many"
 "#,
     )
     .unwrap();
@@ -193,7 +193,7 @@ fn no_files_failure() {
 [[linter]]
 cmd = "lint --"
 files = []
-granularity = "individual"
+args = "many"
 "#,
     );
     let error_display = format!("{:#}", result.unwrap_err());

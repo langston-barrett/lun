@@ -253,14 +253,20 @@ impl CacheWriter for HashCache {
     #[inline]
     fn done_hash(&mut self, hash: KeyHash) {
         let was_new = self.hashes.insert(hash, 0).is_none();
-        debug_assert!(was_new);
-        self.entries_added += 1;
+        if was_new {
+            self.entries_added += 1;
+        }
     }
 
     #[inline]
     fn done(&mut self, key: &Key) {
-        debug_assert!(self.needed(key));
-        self.done_hash(KeyHash::from(key));
+        let hash = KeyHash::from(key);
+        // Assert that this key was either new or was accessed (marked as needed)
+        debug_assert!(
+            !self.hashes.contains_key(&hash) || self.hashes.get(&hash) == Some(&0),
+            "done() called on key that wasn't accessed via needed()"
+        );
+        self.done_hash(hash);
     }
 
     fn flush(&mut self) -> Result<bool> {

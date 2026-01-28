@@ -13,7 +13,7 @@ Run formatter normally (uses `cmd`).
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -37,7 +37,7 @@ Run formatter with `--check` (uses `check` command).
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Flags
@@ -62,7 +62,7 @@ Formatter without `check` field falls back to `cmd` when `--check` is passed.
 [[formatter]]
 cmd = "fmt --"
 files = ["*.rs"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files

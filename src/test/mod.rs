@@ -307,7 +307,11 @@ fn command_to_string(cmd: &process::Command) -> String {
         .get_args()
         .map(|arg| arg.to_string_lossy().to_string())
         .collect();
-    let cmd_str = format!("{} {}", program, args.join(" "));
+    let cmd_str = if args.is_empty() {
+        program.to_string()
+    } else {
+        format!("{} {}", program, args.join(" "))
+    };
     if let Some(cd_path) = cmd.get_current_dir() {
         format!("cd {} && {}", cd_path.display(), cmd_str)
     } else {
@@ -425,7 +429,8 @@ fn parse_test_file_debug() {
                                     "*.py",
                                 ],
                                 ignore: [],
-                                granularity: Individual,
+                                args: Many,
+                                include_unchanged: false,
                                 configs: [],
                                 cd: None,
                             },
@@ -473,7 +478,8 @@ fn parse_test_file_debug() {
                                     "*.py",
                                 ],
                                 ignore: [],
-                                granularity: Individual,
+                                args: Many,
+                                include_unchanged: false,
                                 configs: [],
                                 cd: None,
                             },
@@ -592,4 +598,29 @@ fn tool_override() {
 #[test]
 fn twice() {
     test("tests/twice.md");
+}
+
+#[test]
+fn args_none() {
+    test("tests/args-none.md");
+}
+
+#[test]
+fn args_one() {
+    test("tests/args-one.md");
+}
+
+#[test]
+fn args_many() {
+    test("tests/args-many.md");
+}
+
+#[test]
+fn args_all() {
+    test("tests/args-all.md");
+}
+
+#[test]
+fn include_unchanged() {
+    test("tests/include-unchanged.md");
 }

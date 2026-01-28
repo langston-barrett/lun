@@ -8,7 +8,7 @@
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 cd = "subdir"
 ```
 
@@ -30,7 +30,7 @@ cd subdir && lint -- file.py
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 cd = "subdir"
 ```
 

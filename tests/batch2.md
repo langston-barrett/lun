@@ -13,7 +13,7 @@ cores = 2
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files

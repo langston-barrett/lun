@@ -13,7 +13,7 @@ Run linter normally (uses `cmd`).
 cmd = "lint --"
 fix = "lint --fix --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -37,7 +37,7 @@ Run linter with `--fix` (uses `fix` command).
 cmd = "lint --"
 fix = "lint --fix --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Flags
@@ -62,7 +62,7 @@ Linter without `fix` field falls back to `cmd` when `--fix` is passed.
 [[linter]]
 cmd = "lint --"
 files = ["*.rs"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files

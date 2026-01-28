@@ -10,7 +10,7 @@ Test that when nothing has changed, commands are not rerun.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -31,7 +31,7 @@ lint -- file.py
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Output

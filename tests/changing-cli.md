@@ -10,7 +10,7 @@ Test that changing the command line results in re-running the tool.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -31,7 +31,7 @@ lint -- file.py
 [[linter]]
 cmd = "lint --some-flag --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Output
