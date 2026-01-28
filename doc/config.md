@@ -31,10 +31,14 @@ Each linter is defined in a `[[linter]]` table array.
 - `cmd` (string, required): Command to run for the linter.
 - `files` (array of strings, required): Glob pattern(s) matching files that this linter should process.
 - `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that this linter should ignore.
-- `granularity` (string, default: `"individual"`): How files are passed to the linter:
+- `args` (string, default: `"many"`): How file paths are passed as command-line arguments:
 
-  - `"individual"`: Any number of files per invocation, passed on the command line
-  - `"batch"`: All files in one invocation, not passed on the command line
+  - `"none"`: No files passed on command line (tool discovers files itself)
+  - `"one"`: One file per invocation
+  - `"many"`: Multiple files per invocation (for parallelism)
+  - `"all"`: All matching files must be passed in a single invocation
+
+- `include_unchanged` (boolean, default: `false`): Whether to include unchanged files (files that haven't been modified since the last successful run). Set to `true` for tools that need to see all relevant files, not just changed ones.
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect linter behavior. Changes to these files invalidate the cache.
 - `cd` (string, optional): Working directory for the linter.
@@ -48,10 +52,14 @@ Each formatter is defined in a `[[formatter]]` table array.
 - `cmd` (string, required): Command to run for the formatter.
 - `files` (array of strings, required): Glob pattern(s) matching files that this formatter should process.
 - `ignore` (array of strings, default: `[]`): Glob pattern(s) matching files that this formatter should ignore.
-- `granularity` (string, default: `"individual"`): How files are passed to the formatter:
+- `args` (string, default: `"many"`): How file paths are passed as command-line arguments:
 
-  - `"individual"`: Any number of files per invocation, passed on the command line
-  - `"batch"`: All files in one invocation, not passed on the command line
+  - `"none"`: No files passed on command line (tool discovers files itself)
+  - `"one"`: One file per invocation
+  - `"many"`: Multiple files per invocation (for parallelism)
+  - `"all"`: All matching files must be passed in a single invocation
+
+- `include_unchanged` (boolean, default: `false`): Whether to include unchanged files (files that haven't been modified since the last successful run). Set to `true` for tools that need to see all relevant files, not just changed ones.
 
 - `configs` (array of strings, default: `[]`): Paths to configuration files that affect formatter behavior. Changes to these files invalidate the cache.
 - `cd` (string, optional): Working directory for the formatter.
@@ -86,7 +94,8 @@ Available fields (all optional except `name`):
 - `cmd` (string, optional): Override the command to run.
 - `files` (array of strings, optional): Override the file patterns.
 - `ignore` (array of strings, optional): Override the ignore patterns.
-- `granularity` (string, optional): Override the granularity (`"individual"` or `"batch"`).
+- `args` (string, optional): Override how file paths are passed (`"none"`, `"one"`, `"many"`, or `"all"`).
+- `include_unchanged` (boolean, optional): Override whether to include unchanged files.
 - `configs` (array of strings, optional): Override the configuration file paths.
 - `cd` (string, optional): Override the working directory.
 - `fix` (string, optional): Override the fix command (for linters).

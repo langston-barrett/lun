@@ -31,7 +31,7 @@ fn need_file<C: cache::Cache + ?Sized>(
     file: &mut files::File,
 ) -> bool {
     let mtime_key = cache::Key::from_mtime(file, tool);
-    if mtime_enabled && !cache.needed(&mtime_key) {
+    if mtime_enabled && !tool.include_unchanged && !cache.needed(&mtime_key) {
         debug!(
             "{}: not needed for {} (mtime)",
             file.path.display(),
@@ -39,12 +39,20 @@ fn need_file<C: cache::Cache + ?Sized>(
         );
         return false;
     }
+
     if let Err(e) = file.fill_content_stamp() {
         debug!("{}: failed to read content ({e})", file.path.display());
         return false;
     }
+
     let content_key = cache::Key::from_content(file, tool);
-    if !cache.needed(&content_key) {
+    let is_needed = cache.needed(&content_key);
+
+    if tool.include_unchanged {
+        return true;
+    }
+
+    if !is_needed {
         debug!(
             "{}: not needed for {} (content)",
             file.path.display(),

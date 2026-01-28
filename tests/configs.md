@@ -14,7 +14,7 @@ First run with config dependency.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 configs = ["Cargo.toml"]
 ```
 
@@ -38,7 +38,7 @@ Second run with same config - should be cached (no output).
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 configs = ["Cargo.toml"]
 ```
 
@@ -58,7 +58,7 @@ Run with different config file - should invalidate cache and re-run.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 configs = ["Cargo.lock"]
 ```
 
@@ -78,7 +78,7 @@ Run with no config dependency - different stamp, should re-run.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Output
@@ -97,7 +97,7 @@ Run with multiple configs - should be different stamp from single config.
 [[linter]]
 cmd = "lint --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 configs = ["Cargo.toml", "Cargo.lock"]
 ```
 

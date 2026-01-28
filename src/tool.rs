@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use globset::GlobSet;
 
-use crate::{config::Granularity, file::Xxhash};
+use crate::{config::Args, file::Xxhash};
 
 /// Hash of command, config file content, and tool version
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -14,7 +14,8 @@ pub(crate) struct Tool {
     pub(crate) cmd: String,
     pub(crate) files: GlobSet,
     pub(crate) ignore: Option<GlobSet>,
-    pub(crate) granularity: Granularity,
+    pub(crate) args: Args,
+    pub(crate) include_unchanged: bool,
     pub(crate) stamp: Stamp,
     pub(crate) cd: Option<PathBuf>,
     pub(crate) configs: Vec<PathBuf>,

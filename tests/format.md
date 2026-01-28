@@ -11,7 +11,7 @@ Test that formatters run.
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -33,7 +33,7 @@ fmt -- file.py
 cmd = "fmt --"
 check = "fmt --check --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Output

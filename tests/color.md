@@ -10,7 +10,7 @@ Test that `--color` replaces `{{color}}`.
 [[linter]]
 cmd = "lint --color {{color}} --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files
@@ -37,7 +37,7 @@ lint --color always -- file.py
 [[linter]]
 cmd = "lint --color {{color}} --"
 files = ["*.py"]
-granularity = "individual"
+args = "many"
 ```
 
 ### Files

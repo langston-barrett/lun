@@ -20,7 +20,7 @@ impl Command {
         if let Some(cd) = &self.tool.cd {
             cmd.current_dir(cd);
         }
-        if self.tool.granularity == config::Granularity::Individual {
+        if self.tool.args != config::Args::None {
             for f in &self.files {
                 let path = if let Some(cd) = &self.tool.cd {
                     f.path.strip_prefix(cd).unwrap_or(f.path.as_path())

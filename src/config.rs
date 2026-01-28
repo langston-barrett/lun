@@ -166,10 +166,12 @@ impl Config {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Granularity {
+pub(crate) enum Args {
+    None,
+    One,
     #[default]
-    Individual,
-    Batch,
+    Many,
+    All,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -185,7 +187,10 @@ pub(crate) struct Tool {
     pub(crate) ignore: Vec<String>,
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
-    pub(crate) granularity: Granularity,
+    pub(crate) args: Args,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
+    pub(crate) include_unchanged: bool,
     #[serde(default)]
     #[serde(skip_serializing_if = "default")]
     pub(crate) configs: Vec<PathBuf>,
@@ -230,7 +235,10 @@ pub(crate) struct KnownTool {
     pub(crate) ignore: Vec<String>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) granularity: Option<Granularity>,
+    pub(crate) args: Option<Args>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) include_unchanged: Option<bool>,
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) configs: Option<Vec<PathBuf>>,
@@ -256,8 +264,11 @@ impl KnownTool {
         if !self.ignore.is_empty() {
             linter.tool.ignore.clone_from(&self.ignore);
         }
-        if let Some(granularity) = self.granularity {
-            linter.tool.granularity = granularity;
+        if let Some(args) = self.args {
+            linter.tool.args = args;
+        }
+        if let Some(include_unchanged) = self.include_unchanged {
+            linter.tool.include_unchanged = include_unchanged;
         }
         if let Some(ref configs) = self.configs {
             linter.tool.configs.clone_from(configs);
@@ -280,8 +291,11 @@ impl KnownTool {
         if !self.ignore.is_empty() {
             formatter.tool.ignore.clone_from(&self.ignore);
         }
-        if let Some(granularity) = self.granularity {
-            formatter.tool.granularity = granularity;
+        if let Some(args) = self.args {
+            formatter.tool.args = args;
+        }
+        if let Some(include_unchanged) = self.include_unchanged {
+            formatter.tool.include_unchanged = include_unchanged;
         }
         if let Some(ref configs) = self.configs {
             formatter.tool.configs.clone_from(configs);
@@ -371,7 +385,8 @@ impl Linter {
             cmd,
             files,
             ignore,
-            granularity: self.tool.granularity,
+            args: self.tool.args,
+            include_unchanged: self.tool.include_unchanged,
             stamp,
             cd: self.tool.cd,
             configs: self.tool.configs,
@@ -407,7 +422,8 @@ impl Formatter {
             cmd,
             files,
             ignore,
-            granularity: self.tool.granularity,
+            args: self.tool.args,
+            include_unchanged: self.tool.include_unchanged,
             stamp,
             cd: self.tool.cd,
             configs: self.tool.configs,
