@@ -2,8 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.9.0] - 2026-01-28
 
+[0.9.0]: https://github.com/langston-barrett/lun/releases/tag/v0.9.0
 - BREAKING CHANGE: Improvements to specification of arguments. Replace
   `granularity` with `args` and `include_unchanged`.
 
