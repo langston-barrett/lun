@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo test:*)",
+      "Bash(cargo build:*)",
+      "Bash(UPDATE_EXPECT=1 cargo test:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(git checkout:*)",
+      "Bash(grep:*)",
+      "Bash(cargo check:*)",
+      "Bash(wc:*)",
+      "Bash(cargo fix:*)",
+      "Bash(gh issue view:*)",
+      "Bash(find:*)",
+      "Bash(xargs sed:*)",
+      "Bash(xxd:*)",
+      "Bash(cargo run:*)",
+      "Bash(../target/debug/lun run:*)",
+      "Bash(git pull:*)",
+      "Bash(python3:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)"
+    ]
+  }
+}

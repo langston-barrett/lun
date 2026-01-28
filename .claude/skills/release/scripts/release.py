@@ -164,7 +164,7 @@ def wait_for_ci(pr_url: str) -> None:
 def merge_pr(pr_url: str) -> None:
     """Merge the PR using gh CLI."""
     pr_number = pr_url.rstrip("/").split("/")[-1]
-    run(["gh", "pr", "merge", pr_number, "--merge", "--delete-branch"])
+    run(["gh", "pr", "merge", pr_number, "--squash", "--delete-branch"])
 
 
 def checkout_main_and_pull() -> None:
@@ -186,8 +186,29 @@ def wait_for_tag_ci(version: Version) -> None:
     # Use gh to wait for workflow runs on the tag
     # We need to watch for the release workflow triggered by the tag
     print(f"\nWaiting for CI on tag {tag}...", file=sys.stderr)
-    # Poll for the workflow run associated with the tag
-    run(["gh", "run", "watch", "--exit-status"], check=True)
+    # Get the most recent workflow run for the tag
+    import time
+
+    time.sleep(5)  # Give GitHub a moment to create the workflow run
+    result = run(
+        [
+            "gh",
+            "run",
+            "list",
+            "--workflow=release.yml",
+            f"--branch={tag}",
+            "--limit=1",
+            "--json=databaseId",
+        ],
+        capture=True,
+    )
+    import json
+
+    runs = json.loads(result.stdout)
+    if not runs:
+        raise ValueError(f"No workflow run found for tag {tag}")
+    run_id = runs[0]["databaseId"]
+    run(["gh", "run", "watch", str(run_id), "--exit-status"], check=True)
 
 
 def publish_draft_release(version: Version) -> None:
