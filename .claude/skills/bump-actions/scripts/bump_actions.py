@@ -118,10 +118,58 @@ def create_branch(version: str) -> None:
 
 def push_and_wait_for_ci() -> None:
     """Push the branch and wait for CI to pass."""
+    import json
+    import time
+
+    # Push the branch
     run(["git", "push", "--set-upstream", "origin", "HEAD", "--force-with-lease"])
-    # Wait for CI checks on the branch
-    print("\nWaiting for CI checks to pass...", file=sys.stderr)
-    run(["gh", "run", "watch", "--exit-status"])
+
+    # Get current branch name
+    result = run(["git", "branch", "--show-current"], capture=True)
+    branch_name = result.stdout.strip()
+
+    # Wait for GitHub to register the workflows
+    print("\nWaiting for GitHub to start CI workflows...", file=sys.stderr)
+    time.sleep(5)
+
+    # Get run IDs for the latest commit on this branch
+    print("Fetching CI run IDs...", file=sys.stderr)
+    result = run(
+        [
+            "gh",
+            "run",
+            "list",
+            "--branch",
+            branch_name,
+            "--limit",
+            "5",
+            "--json",
+            "databaseId,status,conclusion,name",
+        ],
+        capture=True,
+    )
+
+    runs = json.loads(result.stdout)
+
+    # Filter to active runs (not completed, or completed but still processing)
+    active_runs = [
+        r for r in runs if r["status"] in ("queued", "in_progress", "waiting")
+    ]
+
+    if not active_runs:
+        print("No active CI runs found to watch", file=sys.stderr)
+        return
+
+    print(f"\nWatching {len(active_runs)} CI run(s):", file=sys.stderr)
+    for r in active_runs:
+        print(f"  - {r['name']} (ID: {r['databaseId']})", file=sys.stderr)
+
+    # Watch each run to completion
+    for r in active_runs:
+        print(f"\nWatching {r['name']}...", file=sys.stderr)
+        run(["gh", "run", "watch", str(r["databaseId"]), "--exit-status"])
+
+    print("\nAll CI checks passed!", file=sys.stderr)
 
 
 def main() -> int:
