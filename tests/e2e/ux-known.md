@@ -80,7 +80,7 @@ configs = [".shellcheckrc"]
 name = "tagref"
 cmd = "tagref check --"
 files = ["*"]
-args = "all"
+args = "none"
 include_unchanged = true
 
 [[linter]]

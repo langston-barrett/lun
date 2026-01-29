@@ -26,6 +26,7 @@ configs = []
 
 [[tool]]
 name = "tagref"
+args = "none"
 
 [[tool]]
 name = "ttlint"
@@ -33,7 +34,7 @@ name = "ttlint"
 [[tool]]
 name = "ty"
 configs = []
-granularity = "individual"
+args = "many"
 
 [[tool]]
 name = "typos"
