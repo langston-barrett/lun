@@ -2,8 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.10.0] - 2026-01-29
 
+[0.10.0]: https://github.com/langston-barrett/lun/releases/tag/v0.10.0
 - Add `--vcs` file for only running on files from `git ls-files`.
 
 ## [0.9.0] - 2026-01-28
