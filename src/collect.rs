@@ -79,9 +79,11 @@ pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
         .filter_entry(move |e| {
             let path = e.path();
 
+            // Check if any component is .git
+            let has_git_dir = path.components().any(|c| c.as_os_str() == ".git");
+
             path.extension().is_none_or(|e| e != "bck")
-                && !path.starts_with("./.git")
-                && !path.starts_with(".git")
+                && !has_git_dir
                 && fs::canonicalize(path).is_ok_and(|p| !p.starts_with(&cache))
         })
         .build();
