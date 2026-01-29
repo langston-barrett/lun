@@ -135,7 +135,7 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
                 cmd: "tagref check --".to_string(),
                 files: vec!["*".to_string()],
                 ignore: Vec::new(),
-                args: Args::All,
+                args: Args::None,
                 include_unchanged: true,
                 configs: Vec::new(),
                 cd: None,
