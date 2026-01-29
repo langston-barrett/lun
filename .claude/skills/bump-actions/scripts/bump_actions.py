@@ -79,6 +79,30 @@ def update_lun_action(action_path: Path, sha: str, version: str) -> None:
     action_path.write_text(updated)
 
 
+def update_workflows(workflows_dir: Path, sha: str) -> list[Path]:
+    """Update workflow files that reference the lun action to use the new SHA.
+
+    Returns list of modified workflow files.
+    """
+    modified = []
+
+    for workflow_file in workflows_dir.glob("*.yml"):
+        content = workflow_file.read_text()
+
+        # Update lun action SHA references
+        updated = re.sub(
+            r"(langston-barrett/lun/\.github/actions/lun@)[a-f0-9]+",
+            rf"\g<1>{sha}",
+            content,
+        )
+
+        if content != updated:
+            workflow_file.write_text(updated)
+            modified.append(workflow_file)
+
+    return modified
+
+
 def git_commit(message: str, files: list[Path]) -> None:
     """Stage files and commit with the given message."""
     run(["git", "add", "--"] + [str(f) for f in files])
@@ -110,6 +134,7 @@ def main() -> int:
     root = get_project_root()
     install_lun_path = root / ".github" / "actions" / "install-lun" / "action.yml"
     lun_action_path = root / ".github" / "actions" / "lun" / "action.yml"
+    workflows_dir = root / ".github" / "workflows"
 
     # Get version to bump to
     version = args.version or get_latest_version()
@@ -127,11 +152,26 @@ def main() -> int:
     # Step 3: Bump lun action with new SHA and version
     print("\n=== Step 2: Bump lun action ===", file=sys.stderr)
     update_lun_action(lun_action_path, head_sha, version)
-    git_commit("chore(actions): Bump `install-lun` version", [lun_action_path])
 
-    # Step 4: Push and wait for CI
+    # Get new HEAD SHA after lun action update
+    git_commit("chore(actions): Bump `install-lun` version", [lun_action_path])
+    lun_action_sha = get_head_sha()
+    print(f"Lun action SHA: {lun_action_sha}", file=sys.stderr)
+
+    # Step 4: Update workflows to use new lun action SHA
+    print("\n=== Step 3: Update workflows ===", file=sys.stderr)
+    modified_workflows = update_workflows(workflows_dir, lun_action_sha)
+    if modified_workflows:
+        print(f"Updated {len(modified_workflows)} workflow(s)", file=sys.stderr)
+        git_commit(
+            "chore(ci): Update workflows to use new lun action SHA", modified_workflows
+        )
+    else:
+        print("No workflows needed updating", file=sys.stderr)
+
+    # Step 5: Push and wait for CI
     if not args.no_push:
-        print("\n=== Step 3: Push and wait for CI ===", file=sys.stderr)
+        print("\n=== Step 4: Push and wait for CI ===", file=sys.stderr)
         push_and_wait_for_ci()
     else:
         print("\nSkipping push (--no-push specified)", file=sys.stderr)
