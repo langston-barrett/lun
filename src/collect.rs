@@ -38,6 +38,35 @@ fn get_staged() -> Result<Vec<String>> {
     Ok(files)
 }
 
+fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
+    let output = process::Command::new("git")
+        .args(["ls-files", "--exclude-standard"])
+        .current_dir(root)
+        .output()
+        .with_context(|| "Failed to execute git ls-files")?;
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "git ls-files failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let strip = root == env::current_dir()?;
+    let files: Vec<_> = stdout
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|p| {
+            debug!("Found VCS-tracked file {p}");
+            if strip {
+                PathBuf::from(p)
+            } else {
+                root.join(p)
+            }
+        })
+        .collect();
+    Ok(files)
+}
+
 pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
     let cache = fs::canonicalize(cache_dir).with_context(|| {
         format!(
@@ -75,6 +104,7 @@ pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
     Ok(paths)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn go(
     root: &Path,
     cache_dir: &Path,
@@ -83,6 +113,7 @@ pub(crate) fn go(
     only: &[String],
     skip: &[String],
     staged: bool,
+    vcs: bool,
 ) -> Result<Vec<file::File>> {
     let mut progress = Progress::new(progress_format, None, out);
     progress.write("Collecting files");
@@ -93,7 +124,11 @@ pub(crate) fn go(
         only.retain(|p| s.contains(p));
     }
 
-    let mut paths = walk(root, cache_dir)?;
+    let mut paths = if vcs {
+        get_vcs_files(root)?
+    } else {
+        walk(root, cache_dir)?
+    };
     filter::filter(&only, skip, &mut paths)?;
 
     let mut files = Vec::with_capacity(paths.len());
