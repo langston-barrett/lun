@@ -20,6 +20,5 @@ run
 ```
 
 ```
-[0/?] Collecting files
 Invalid `files` glob `[invalid` for `echo`
 ```

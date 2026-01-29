@@ -10,16 +10,17 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use globset::Glob;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, trace, warn};
 
 use crate::{
     Paths,
     cache::{self, CacheWriter},
-    cli, config, exec, file, git, ninja, plan, progress,
-    progress::{Format, Progress},
-    staged, tool,
+    cli, collect, config, exec,
+    file::{self, File},
+    git, ninja, plan,
+    progress::{self, Format, Progress},
+    tool,
     warn::{self, warns::Warns},
 };
 
@@ -46,71 +47,6 @@ pub(crate) fn num_cores(cores: Option<NonZeroUsize>) -> NonZeroUsize {
     cores.unwrap_or_else(|| {
         thread::available_parallelism().unwrap_or(const { NonZeroUsize::new(1).unwrap() })
     })
-}
-
-fn collect_files(
-    paths: &Paths,
-    run: &cli::Run,
-    progress_format: Format,
-    out: &mut (impl Write + ?Sized),
-) -> Result<Vec<file::File>, anyhow::Error> {
-    let mut files = if run.staged {
-        staged::collect_staged_files()?
-    } else {
-        file::collect_files(&paths.cwd, &paths.cache, progress_format, out)?
-    };
-    filter_files(&mut files, &run.only_files, &run.skip_files)?;
-    Ok(files)
-}
-
-fn only_matchers(only_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
-    let only = only_patterns
-        .iter()
-        .map(|pattern| {
-            Glob::new(pattern)
-                .with_context(|| format!("Invalid `only` glob pattern: {pattern}"))
-                .map(|g| g.compile_matcher())
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(only)
-}
-
-fn skip_matchers(skip_patterns: &[String]) -> Result<Vec<globset::GlobMatcher>, anyhow::Error> {
-    let skip = skip_patterns
-        .iter()
-        .map(|pattern| {
-            Glob::new(pattern)
-                .with_context(|| format!("Invalid `skip` glob pattern: {pattern}"))
-                .map(|g| g.compile_matcher())
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(skip)
-}
-
-pub(crate) fn filter_files(
-    files: &mut Vec<file::File>,
-    only_patterns: &[String],
-    skip_patterns: &[String],
-) -> Result<()> {
-    if only_patterns.is_empty() && skip_patterns.is_empty() {
-        return Ok(());
-    }
-
-    let only = only_matchers(only_patterns)?;
-    let skip = skip_matchers(skip_patterns)?;
-
-    files.retain(|file| {
-        let path = file.path.as_path();
-        if !only.is_empty() && !only.iter().any(|m| m.is_match(path)) {
-            return false;
-        }
-        if skip.iter().any(|m| m.is_match(path)) {
-            return false;
-        }
-        true
-    });
-
-    Ok(())
 }
 
 fn include_tool(tool: &config::Tool, run: &cli::Run) -> bool {
@@ -169,7 +105,6 @@ struct Config {
     cwd: PathBuf,
     cores: NonZeroUsize,
     dry_run: bool,
-    files: Vec<file::File>,
     mtime: bool,
     ninja: bool,
     no_batch: bool,
@@ -183,12 +118,31 @@ struct Config {
     cache_size: Option<usize>,
 }
 
+impl Config {
+    fn collect_files(
+        &self,
+        staged: bool,
+        only: &[String],
+        skip: &[String],
+        out: &mut (impl Write + ?Sized),
+    ) -> Result<Vec<File>> {
+        collect::go(
+            &self.cwd,
+            &self.cache,
+            self.show_progress,
+            out,
+            only,
+            skip,
+            staged,
+        )
+    }
+}
+
 fn mk_config(
     cli: &cli::Cli,
     paths: &Paths,
     run: &cli::Run,
     config: &config::Config,
-    out: &mut (impl Write + ?Sized),
 ) -> Result<Config> {
     let mode = RunMode::from(run);
     let is_a_tty = if cfg!(test) {
@@ -212,18 +166,7 @@ fn mk_config(
         config.refs.clone()
     };
     let mtime = config.mtime && !run.no_mtime;
-    let files = collect_files(paths, run, show_progress, out)?;
-    // After collect_files succeeds, the progress line has been written.
-    // If anything fails from here, we need to print a newline first.
-    let tools = match filter_tools(run, config, mode, cli.log.color) {
-        Ok(t) => t,
-        Err(e) => {
-            if matches!(show_progress, Format::Terminal) {
-                drop(out.write(b"\n"));
-            }
-            return Err(e);
-        }
-    };
+    let tools = filter_tools(run, config, mode, cli.log.color)?;
     Ok(Config {
         refs,
         cache: paths.cache.clone(),
@@ -231,7 +174,6 @@ fn mk_config(
         cwd: paths.cwd.clone(),
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
-        files,
         mtime,
         ninja: run.ninja || config.ninja.unwrap_or(false),
         no_batch: run.no_batch,
@@ -267,21 +209,26 @@ impl From<&RunResult> for bool {
     }
 }
 
-fn run(config: &Config, lints: &Warns, out: &mut (impl Write + Send)) -> Result<RunResult> {
+fn run(
+    config: &Config,
+    files: &[File],
+    lints: &Warns,
+    out: &mut (impl Write + Send),
+) -> Result<RunResult> {
     trace!(?config);
-    debug_assert!(config.files.iter().all(|f| f.content_stamp.is_none()));
+    debug_assert!(files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
     let mut cache = if config.no_cache {
         cache::HashCache::new(PathBuf::from("/dev/null"), 0)
     } else {
         cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
-    let plan_total = config.files.len() * config.tools.len();
+    let plan_total = files.len() * config.tools.len();
     let mut plan_progress = Progress::new(config.show_progress, Some(plan_total), out);
     let jobs = plan::plan(
         &mut cache,
         &config.tools,
-        &config.files,
+        files,
         &config.refs,
         Some(config.config_path.as_path()),
         &config.cwd,
@@ -394,8 +341,14 @@ pub(crate) fn go(
         watch(cli, paths, run_cli, config, lints, out)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
-        let config = mk_config(cli, paths, run_cli, config, out)?;
-        let result = run(&config, lints, out);
+        let config = mk_config(cli, paths, run_cli, config)?;
+        let files = config.collect_files(
+            run_cli.staged,
+            &run_cli.only_files,
+            &run_cli.skip_files,
+            out,
+        )?;
+        let result = run(&config, &files, lints, out);
         #[cfg(debug_assertions)]
         {
             let debug_cache = paths.cache.join("debug");
@@ -403,7 +356,7 @@ pub(crate) fn go(
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
             debug_config.cache = debug_cache;
-            let debug_result = run(&debug_config, lints, &mut io::sink());
+            let debug_result = run(&debug_config, &files, lints, &mut io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
                     (Ok(r1), Ok(r2)) => bool::from(r1) == bool::from(r2),
@@ -441,8 +394,14 @@ fn watch(
     lints: &Warns,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
-    let mut config = mk_config(cli, paths, run_cli, config, out)?;
-    run(&config, lints, out)?;
+    let config = mk_config(cli, paths, run_cli, config)?;
+    let files = config.collect_files(
+        run_cli.staged,
+        &run_cli.only_files,
+        &run_cli.skip_files,
+        out,
+    )?;
+    run(&config, &files, lints, out)?;
 
     let initial_config_hash = paths
         .config
@@ -478,8 +437,13 @@ fn watch(
             clear_term();
             warn_if_config_changed(paths.config.as_deref(), initial_config_hash);
             thread::sleep(time::Duration::from_millis(20));
-            config.files = collect_files(paths, run_cli, config.show_progress, out)?;
-            run(&config, lints, out)?;
+            let files = config.collect_files(
+                run_cli.staged,
+                &run_cli.only_files,
+                &run_cli.skip_files,
+                out,
+            )?;
+            run(&config, &files, lints, out)?;
         }
         last_run = time::Instant::now();
     }
