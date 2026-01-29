@@ -338,3 +338,8 @@ fn ux_known() {
 fn global_ignore() {
     test_file("global-ignore");
 }
+
+#[test]
+fn gitignore() {
+    test_file("gitignore");
+}
