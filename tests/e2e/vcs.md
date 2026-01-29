@@ -28,7 +28,6 @@ files = ["*.txt"]
 ```sh
 git init
 git add lun.toml tracked.txt
-git commit -m "Initial commit"
 ```
 
 ## Command
