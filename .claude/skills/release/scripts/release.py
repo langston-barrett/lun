@@ -119,6 +119,8 @@ def git_prepare_branch() -> None:
     """Check out main, pull, and create release branch."""
     run(["git", "checkout", "main"])
     run(["git", "pull"])
+    # Delete existing release branch if it exists
+    run(["git", "branch", "-D", "release"], check=False)
     run(["git", "checkout", "-b", "release"])
 
 
@@ -140,7 +142,7 @@ def create_pr(version: Version) -> str:
             "--title",
             f"v{version}",
             "--body",
-            f"Release v{version}",
+            "",
         ],
         capture=True,
     )
