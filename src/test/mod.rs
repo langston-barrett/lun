@@ -3,7 +3,7 @@ mod warn;
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, cmd, file, plan,
+    cli, cmd, file, filter, plan,
     progress::{Format, Progress},
     run,
 };
@@ -340,12 +340,19 @@ fn test(path: &'static str) {
             .unwrap();
         let run = scenario.run.as_ref().unwrap_or(&default);
 
-        let mut files = scenario
+        let mut paths = scenario
             .files
             .iter()
+            .map(|t| t.path.clone())
+            .collect::<Vec<_>>();
+        filter::filter(&run.only_files, &run.skip_files, &mut paths).unwrap();
+        let files = scenario
+            .files
+            .iter()
+            .filter(|t| paths.contains(&t.path))
             .map(TestFile::to_file)
             .collect::<Vec<_>>();
-        run::filter_files(&mut files, &run.only_files, &run.skip_files).unwrap();
+
         let cores = scenario
             .config
             .cores

@@ -1,12 +1,7 @@
 use anyhow::{Context, Result};
-use ignore::WalkBuilder;
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{env, fs};
-use tracing::debug;
 use xxhash_rust::xxh3::Xxh3;
-
-use crate::progress::{Format, Progress};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Xxhash(pub(crate) u128);
@@ -117,59 +112,4 @@ pub(crate) fn compute_hash(content: &[u8]) -> Xxhash {
     let mut hasher = Xxh3::new();
     hasher.update(content);
     Xxhash(hasher.digest128())
-}
-
-pub(crate) fn collect_files(
-    root: &Path,
-    cache_dir: &Path,
-    progress_format: Format,
-    out: &mut (impl Write + ?Sized),
-) -> Result<Vec<File>> {
-    let mut progress = Progress::new(progress_format, None, out);
-    progress.write("Collecting files");
-    let mut files = Vec::new();
-    let cache = fs::canonicalize(cache_dir).with_context(|| {
-        format!(
-            "Failed to canonicalize cache directory: {}",
-            cache_dir.display()
-        )
-    })?;
-
-    let walker = WalkBuilder::new(root)
-        .hidden(false)
-        .filter_entry(move |e| {
-            let path = e.path();
-
-            path.extension().is_none_or(|e| e != "bck")
-                && !path.starts_with("./.git")
-                && !path.starts_with(".git")
-                && fs::canonicalize(path).is_ok_and(|p| !p.starts_with(&cache))
-        })
-        .build();
-    let strip = root == env::current_dir()?;
-    for result in walker {
-        let entry = result.with_context(|| "Failed to read directory entry")?;
-        let path = entry.path();
-        if path.is_dir() {
-            continue;
-        }
-
-        debug!("Found {}", path.display());
-        // This can fail due to TOCTTOU bugs between content/metadata
-        let path = if strip {
-            path.strip_prefix(root)?
-        } else {
-            path
-        };
-        if let Ok(file) = File::new(path.to_path_buf()) {
-            debug_assert!(!strip || !file.path.starts_with("./"));
-            files.push(file);
-        } else {
-            debug!("Failed to process {}", path.display());
-        }
-    }
-
-    // prevent very short-lived files (e.g., editor backups) from sneaking in
-    files.retain(|f| f.path.exists());
-    Ok(files)
 }
