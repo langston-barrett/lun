@@ -171,6 +171,9 @@ pub(crate) struct Run {
     /// Only run on staged files (useful in pre-commit hooks)
     #[arg(long)]
     pub(crate) staged: bool,
+    /// Only run on VCS-tracked files (uses git ls-files)
+    #[arg(long)]
+    pub(crate) vcs: bool,
     /// Command to run failure (useful with --watch)
     #[arg(short, long)]
     pub(crate) then: Option<String>,

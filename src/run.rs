@@ -122,6 +122,7 @@ impl Config {
     fn collect_files(
         &self,
         staged: bool,
+        vcs: bool,
         only: &[String],
         skip: &[String],
         out: &mut (impl Write + ?Sized),
@@ -134,6 +135,7 @@ impl Config {
             only,
             skip,
             staged,
+            vcs,
         )
     }
 }
@@ -344,6 +346,7 @@ pub(crate) fn go(
         let config = mk_config(cli, paths, run_cli, config)?;
         let files = config.collect_files(
             run_cli.staged,
+            run_cli.vcs,
             &run_cli.only_files,
             &run_cli.skip_files,
             out,
@@ -397,6 +400,7 @@ fn watch(
     let config = mk_config(cli, paths, run_cli, config)?;
     let files = config.collect_files(
         run_cli.staged,
+        run_cli.vcs,
         &run_cli.only_files,
         &run_cli.skip_files,
         out,
@@ -439,6 +443,7 @@ fn watch(
             thread::sleep(time::Duration::from_millis(20));
             let files = config.collect_files(
                 run_cli.staged,
+                run_cli.vcs,
                 &run_cli.only_files,
                 &run_cli.skip_files,
                 out,
