@@ -109,9 +109,16 @@ def git_commit(message: str, files: list[Path]) -> None:
     run(["git", "commit", "-m", message])
 
 
+def create_branch(version: str) -> None:
+    """Create a new branch for the version bump."""
+    branch_name = f"bump-actions-v{version}"
+    print(f"Creating branch: {branch_name}", file=sys.stderr)
+    run(["git", "checkout", "-b", branch_name])
+
+
 def push_and_wait_for_ci() -> None:
     """Push the branch and wait for CI to pass."""
-    run(["git", "push"])
+    run(["git", "push", "--set-upstream", "origin", "HEAD", "--force-with-lease"])
     # Wait for CI checks on the branch
     print("\nWaiting for CI checks to pass...", file=sys.stderr)
     run(["gh", "run", "watch", "--exit-status"])
@@ -139,6 +146,9 @@ def main() -> int:
     # Get version to bump to
     version = args.version or get_latest_version()
     print(f"Bumping to version: {version}", file=sys.stderr)
+
+    # Create a new branch for this bump
+    create_branch(version)
 
     # Step 1: Bump install-lun version
     print("\n=== Step 1: Bump install-lun version ===", file=sys.stderr)
