@@ -14,10 +14,11 @@ This skill bumps versions in two actions:
 1. **install-lun**: Downloads and installs a specific lun version
 2. **lun**: Uses install-lun to install lun and then runs it
 
-The process creates two commits:
+The process creates 2-3 commits:
 
 1. First commit: Bump `lun` version in `install-lun/action.yml`
 2. Second commit: Bump `install-lun` SHA reference (to HEAD) and `lun` version in `lun/action.yml`
+3. Third commit (if needed): Update workflow files that reference the `lun` action to use the new SHA
 
 ## Usage
 
@@ -49,4 +50,7 @@ python3 .claude/skills/bump-actions/scripts/bump_actions.py --no-push
    - Changes the `install-lun@SHA` reference to HEAD
    - Updates the default version to match
 6. Commits: `chore(actions): Bump \`install-lun\` version`
-7. Pushes and waits for CI to pass using `gh run watch`
+7. Gets the new HEAD SHA (from the commit just made)
+8. Updates workflow files in `.github/workflows/` that reference `langston-barrett/lun/.github/actions/lun@SHA` to use the new SHA
+9. Commits (if workflows were updated): `chore(ci): Update workflows to use new lun action SHA`
+10. Pushes and waits for CI to pass using `gh run watch`
