@@ -5,14 +5,18 @@ use tracing::debug;
 use crate::{cmd, config::Args, file};
 
 pub(crate) fn display_cmd(c: &process::Command) -> String {
-    format!(
-        "{} {}",
-        c.get_program().display(),
-        c.get_args()
-            .map(|a| a.display().to_string())
-            .collect::<Vec<_>>()
-            .join(" ")
-    )
+    if c.get_args().next().is_none() {
+        c.get_program().display().to_string()
+    } else {
+        format!(
+            "{} {}",
+            c.get_program().display(),
+            c.get_args()
+                .map(|a| a.display().to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    }
 }
 
 pub(crate) fn create_jobs(

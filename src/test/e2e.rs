@@ -382,6 +382,11 @@ fn ux_failure() {
 }
 
 #[test]
+fn ux_failure_then_success() {
+    test_file("ux-failure-then-success");
+}
+
+#[test]
 fn ux_known() {
     test_file("ux-known");
 }
@@ -399,6 +404,11 @@ fn ux_noop() {
 #[test]
 fn ux_success() {
     test_file("ux-success");
+}
+
+#[test]
+fn success_then_failure() {
+    test_file("ux-success-then-failure");
 }
 
 #[test]
