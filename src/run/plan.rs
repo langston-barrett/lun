@@ -126,7 +126,7 @@ pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     no_batch: bool,
     mtime_enabled: bool,
     progress: &mut Progress<'_, W>,
-) -> Vec<cmd::Command> {
+) -> Vec<batch::Batch> {
     debug!("Collected {} files", files.len());
     if files.is_empty() {
         return Vec::new();

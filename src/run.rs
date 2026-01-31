@@ -247,7 +247,7 @@ fn run(
     let n_jobs = jobs.len();
     let files_linted = jobs
         .iter()
-        .flat_map(|job| job.files.iter().map(|f| &f.path))
+        .flat_map(|job| job.cmd.files.iter().map(|f| &f.path))
         .collect::<HashSet<_>>()
         .len();
     let result = do_exec(config, &mut cache, jobs, out);
@@ -279,7 +279,7 @@ fn run(
 fn do_exec(
     config: &Config,
     cache: &mut (impl CacheWriter + ?Sized),
-    jobs: Vec<cmd::Command>,
+    jobs: Vec<batch::Batch>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     if config.ninja {

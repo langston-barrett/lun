@@ -2,7 +2,7 @@ use crate::{
     cache::{self, CacheWriter},
     cli, file, out,
     progress::{Format, Progress},
-    run::{self, cmd, filter, plan},
+    run::{self, batch, filter, plan},
 };
 
 use anyhow::{Context, Result};
@@ -316,7 +316,7 @@ fn command_to_string(cmd: &process::Command) -> String {
     }
 }
 
-fn jobs_to_string(jobs: &[cmd::Command]) -> Vec<String> {
+fn jobs_to_string(jobs: &[batch::Batch]) -> Vec<String> {
     let mut result = Vec::new();
     for job in jobs {
         let cmd = job.to_command();
@@ -399,12 +399,12 @@ fn test(path: &'static str) {
             .filter(|s| !s.is_empty())
             .cloned()
             .collect();
-        for cmd in &batches {
-            let cmd_str = command_to_string(&cmd.to_command());
+        for batch in &batches {
+            let cmd_str = command_to_string(&batch.to_command());
             // Only mark as done if this command is not in the failed list
             if !failed_set.contains(&cmd_str) {
-                let tool = cmd.tool.clone();
-                for file in &cmd.files {
+                let tool = batch.cmd.tool.clone();
+                for file in &batch.cmd.files {
                     let key = cache::Key::new(file.content_stamp(), tool.stamp);
                     cache.done(&key);
                 }
