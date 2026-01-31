@@ -1,6 +1,5 @@
 use std::{
-    env, fs,
-    io::{self, IsTerminal},
+    env, fs, io,
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -10,7 +9,7 @@ use anyhow::{Context as _, Result};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use tracing::debug;
 
-use crate::{file, git, known, run::RunMode, tool};
+use crate::{file, git, known, out, run::RunMode, tool};
 
 pub(crate) const CONFIG_FILE_NAME: &str = "lun.toml";
 
@@ -362,10 +361,10 @@ impl Linter {
         self,
         mode: RunMode,
         careful: bool,
-        color: crate::cli::log::Color,
+        out_config: out::Config,
         global_ignore: &[String],
     ) -> Result<tool::Tool> {
-        let color_str = color_to_str(color);
+        let color_str = out_config.color_as_str();
         let cmd = match mode {
             RunMode::Fix => {
                 if let Some(fix) = &self.fix {
@@ -399,10 +398,10 @@ impl Formatter {
         self,
         mode: RunMode,
         careful: bool,
-        color: crate::cli::log::Color,
+        out_config: out::Config,
         global_ignore: &[String],
     ) -> Result<tool::Tool> {
-        let color_str = color_to_str(color);
+        let color_str = out_config.color_as_str();
         let cmd = match mode {
             RunMode::Check => {
                 if let Some(check) = &self.check {
@@ -428,20 +427,6 @@ impl Formatter {
             cd: self.tool.cd,
             configs: self.tool.configs,
         })
-    }
-}
-
-fn color_to_str(color: crate::cli::log::Color) -> &'static str {
-    match color {
-        crate::cli::log::Color::Always => "always",
-        crate::cli::log::Color::Never => "never",
-        crate::cli::log::Color::Auto => {
-            if io::stdout().is_terminal() {
-                "always"
-            } else {
-                "never"
-            }
-        }
     }
 }
 

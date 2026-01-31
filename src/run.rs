@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
-    io::{self, IsTerminal as _, Write},
+    io::{self, Write},
     num::NonZeroUsize,
     path::{Path, PathBuf},
     process,
@@ -23,7 +23,7 @@ use crate::{
     cache::{self, CacheWriter},
     cli, config, exec,
     file::{self, File},
-    git,
+    git, out,
     progress::{self, Format, Progress},
     tool,
     warn::{self, warns::Warns},
@@ -71,7 +71,7 @@ fn filter_tools(
     run: &cli::Run,
     config: &config::Config,
     mode: RunMode,
-    color: cli::log::Color,
+    out_config: out::Config,
 ) -> Result<Vec<tool::Tool>> {
     let careful = run.careful || config.careful;
     let effective_ignore = config.effective_ignore();
@@ -80,22 +80,24 @@ fn filter_tools(
     if !run.format {
         for linter in &config.linter {
             if include_tool(&linter.tool, run) {
-                tools.push(
-                    linter
-                        .clone()
-                        .into_tool(mode, careful, color, &effective_ignore)?,
-                );
+                tools.push(linter.clone().into_tool(
+                    mode,
+                    careful,
+                    out_config,
+                    &effective_ignore,
+                )?);
             }
         }
     }
 
     for formatter in &config.formatter {
         if include_tool(&formatter.tool, run) {
-            tools.push(
-                formatter
-                    .clone()
-                    .into_tool(mode, careful, color, &effective_ignore)?,
-            );
+            tools.push(formatter.clone().into_tool(
+                mode,
+                careful,
+                out_config,
+                &effective_ignore,
+            )?);
         }
     }
 
@@ -116,7 +118,7 @@ struct Config {
     no_capture: bool,
     no_cache: bool,
     tools: Vec<tool::Tool>,
-    show_progress: Format,
+    progress_format: Format,
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
@@ -135,7 +137,7 @@ impl Config {
         collect::go(
             &self.cwd,
             &self.cache,
-            self.show_progress,
+            self.progress_format,
             out,
             only,
             skip,
@@ -146,25 +148,12 @@ impl Config {
 }
 
 fn mk_config(
-    cli: &cli::Cli,
     paths: &Paths,
+    out_config: out::Config,
     run: &cli::Run,
     config: &config::Config,
 ) -> Result<Config> {
     let mode = RunMode::from(run);
-    let is_a_tty = if cfg!(test) {
-        false
-    } else {
-        io::stderr().is_terminal()
-    };
-    let show_progress = if !is_a_tty || cli.log.quiet < cli.log.verbose {
-        Format::Newline
-    } else if cli.log.quiet == cli.log.verbose {
-        // verbosity == info
-        Format::Terminal
-    } else {
-        Format::No
-    };
     let refs = if run.no_refs || run.fresh {
         Vec::new()
     } else if !run.refs.is_empty() {
@@ -173,7 +162,7 @@ fn mk_config(
         config.refs.clone()
     };
     let mtime = config.mtime && !run.no_mtime;
-    let tools = filter_tools(run, config, mode, cli.log.color)?;
+    let tools = filter_tools(run, config, mode, out_config)?;
     Ok(Config {
         refs,
         cache: paths.cache.clone(),
@@ -187,7 +176,7 @@ fn mk_config(
         no_capture: run.no_capture,
         no_cache: run.no_cache || run.fresh,
         tools,
-        show_progress,
+        progress_format: Format::new(out_config),
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),
@@ -231,7 +220,7 @@ fn run(
         cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
     let plan_total = files.len() * config.tools.len();
-    let mut plan_progress = Progress::new(config.show_progress, Some(plan_total), out);
+    let mut plan_progress = Progress::new(config.progress_format, Some(plan_total), out);
     let jobs = plan::plan(
         &mut cache,
         &config.tools,
@@ -270,13 +259,13 @@ fn run(
         Ok(false) => Ok(RunResult::Errors),
         Err(e) => {
             // Write the final newline that report_result would otherwise handle
-            if matches!(config.show_progress, Format::Terminal) {
+            if matches!(config.progress_format, Format::Terminal) {
                 drop(out.write(b"\n"));
             }
             Err(e)
         }
     }?;
-    report_result(config.show_progress, &result, out);
+    report_result(config.progress_format, &result, out);
     then_else(config, &result)?;
     Ok(result)
 }
@@ -306,7 +295,7 @@ fn do_exec(
             jobs,
             config.cores,
             config.no_capture,
-            config.show_progress,
+            config.progress_format,
             config.keep_going,
             config.mtime,
             out,
@@ -335,20 +324,20 @@ fn then_else(config: &Config, result: &RunResult) -> Result<(), anyhow::Error> {
 }
 
 pub(crate) fn go(
-    cli: &cli::Cli,
     paths: &Paths,
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
+    out_config: out::Config,
     out: &mut (impl Write + Send),
 ) -> std::result::Result<RunResult, anyhow::Error> {
     lint(run_cli, config, lints)?;
     fs::create_dir_all(&paths.cache)?; // just to create the dir
     if run_cli.watch {
-        watch(cli, paths, run_cli, config, lints, out)?;
+        watch(paths, out_config, run_cli, config, lints, out)?;
         Ok(RunResult::AllGood { cmds: 0, files: 0 })
     } else {
-        let config = mk_config(cli, paths, run_cli, config)?;
+        let config = mk_config(paths, out_config, run_cli, config)?;
         let files = config.collect_files(
             run_cli.staged,
             run_cli.vcs,
@@ -395,14 +384,14 @@ fn clear_term() {
 // using the events from `notify`. See e.g.,
 // https://github.com/astral-sh/ruff/blob/main/crates/ty_project/src/watch/watcher.rs
 fn watch(
-    cli: &cli::Cli,
     paths: &Paths,
+    out_config: out::Config,
     run_cli: &cli::Run,
     config: &config::Config,
     lints: &Warns,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
-    let config = mk_config(cli, paths, run_cli, config)?;
+    let config = mk_config(paths, out_config, run_cli, config)?;
     let files = config.collect_files(
         run_cli.staged,
         run_cli.vcs,

@@ -3,7 +3,7 @@ mod warn;
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, cmd, file,
+    cli, cmd, file, out,
     progress::{Format, Progress},
     run::{self, filter, plan},
 };
@@ -24,7 +24,7 @@ struct TestScenario {
     expected_output: Vec<String>,
     failed_commands: Vec<String>,
     run: Option<cli::Run>,
-    color: cli::log::Color,
+    out_config: out::Config,
 }
 
 #[derive(Clone, Debug)]
@@ -134,7 +134,7 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
     if let cli::Command::Run(run) = cli.command {
         scenario.run = Some(run);
     }
-    scenario.color = cli.log.color;
+    scenario.out_config = out::Config::new(cli.log);
 }
 
 fn process_files_section_line(scenario: &mut TestScenario, line: &str) {
@@ -227,7 +227,7 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
                 expected_output: Vec::new(),
                 failed_commands: Vec::new(),
                 run: None,
-                color: cli::log::Color::Auto,
+                out_config: out::Config::default(),
             });
             current_section = None;
             current_content.clear();
@@ -359,22 +359,20 @@ fn test(path: &'static str) {
             .unwrap_or(const { NonZeroUsize::new(1).unwrap() });
         let run_mode = run::RunMode::from(run);
         let effective_ignore = scenario.config.effective_ignore();
-        let tool = scenario
-            .config
-            .linter
-            .iter()
-            .cloned()
-            .map(|t| t.into_tool(run_mode, false, scenario.color, &effective_ignore))
-            .chain(
-                scenario
-                    .config
-                    .formatter
-                    .iter()
-                    .cloned()
-                    .map(|t| t.into_tool(run_mode, false, scenario.color, &effective_ignore)),
-            )
-            .collect::<Result<Vec<_>>>()
-            .unwrap();
+        let tool =
+            scenario
+                .config
+                .linter
+                .iter()
+                .cloned()
+                .map(|t| t.into_tool(run_mode, false, scenario.out_config, &effective_ignore))
+                .chain(
+                    scenario.config.formatter.iter().cloned().map(|t| {
+                        t.into_tool(run_mode, false, scenario.out_config, &effective_ignore)
+                    }),
+                )
+                .collect::<Result<Vec<_>>>()
+                .unwrap();
         let mut sink = std::io::sink();
         let mut progress = Progress::new(Format::No, None, &mut sink);
         let batches = plan::plan(
@@ -472,7 +470,14 @@ fn parse_test_file_debug() {
                 ],
                 failed_commands: [],
                 run: None,
-                color: Auto,
+                out_config: Config {
+                    color: false,
+                    interactive: false,
+                    timestamps: false,
+                    verbosity: Level(
+                        Warn,
+                    ),
+                },
             },
             TestScenario {
                 config: Config {
@@ -521,7 +526,14 @@ fn parse_test_file_debug() {
                 ],
                 failed_commands: [],
                 run: None,
-                color: Auto,
+                out_config: Config {
+                    color: false,
+                    interactive: false,
+                    timestamps: false,
+                    verbosity: Level(
+                        Warn,
+                    ),
+                },
             },
         ]"#]]
     .assert_eq(&debug_output);

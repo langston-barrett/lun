@@ -2,11 +2,26 @@ use std::cmp;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
+use crate::out;
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Format {
     No,
     Terminal,
     Newline,
+}
+
+impl Format {
+    pub(crate) fn new(out_config: out::Config) -> Self {
+        if out_config.verbosity < tracing::Level::INFO {
+            return Self::No;
+        }
+        if out_config.interactive {
+            Self::Terminal
+        } else {
+            Self::Newline
+        }
+    }
 }
 
 const TERMINAL_RATE_LIMIT: Duration = Duration::from_millis(100);

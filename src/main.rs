@@ -15,6 +15,7 @@ mod init;
 mod job;
 mod known;
 mod log;
+mod out;
 mod progress;
 mod run;
 mod tool;
@@ -70,6 +71,7 @@ pub(crate) fn go(
     cli: cli::Cli,
     paths: &Paths,
     config: Option<config::Config>,
+    out_config: out::Config,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
@@ -114,7 +116,7 @@ pub(crate) fn go(
         cli::Command::Run(run) => {
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(&cli, paths, run, &config, &lints, out).map(bool::from)
+            run::go(paths, run, &config, &lints, out_config, out).map(bool::from)
         }
         cli::Command::Init(init) => {
             let config_path = paths
@@ -158,7 +160,8 @@ fn main() -> Result<()> {
     let _profiler = dhat::Profiler::new_heap();
 
     let cli = cli::Cli::parse();
-    log::init_tracing(cli.log);
+    let out_config = out::Config::new(cli.log);
+    log::init_tracing(out_config);
     debug!("version = {}", env!("CARGO_PKG_VERSION"));
     trace!(?cli);
     let paths = Paths::resolve(&cli);
@@ -168,7 +171,7 @@ fn main() -> Result<()> {
         None => None,
     };
     trace!(?config);
-    let ok = go(cli, &paths, config, &mut io::stderr())?;
+    let ok = go(cli, &paths, config, out_config, &mut io::stderr())?;
     if !ok {
         process::exit(1);
     }
