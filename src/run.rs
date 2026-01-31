@@ -227,7 +227,7 @@ fn run(
     };
     let plan_total = files.len() * config.tools.len();
     let mut plan_progress = Progress::new(config.progress_format, Some(plan_total), out);
-    let jobs = plan::plan(
+    let batches = plan::plan(
         &mut cache,
         &config.tools,
         files,
@@ -243,15 +243,15 @@ fn run(
     if !config.no_cache {
         cache.flush()?;
     }
-    let no_jobs = jobs.is_empty();
-    let n_jobs = jobs.len();
-    let files_linted = jobs
+    let no_batches = batches.is_empty();
+    let n_batches = batches.len();
+    let files_linted = batches
         .iter()
-        .flat_map(|job| job.cmd.files.iter().map(|f| &f.path))
+        .flat_map(|batch| batch.cmd.files.iter().map(|f| &f.path))
         .collect::<HashSet<_>>()
         .len();
-    let result = do_exec(config, &mut cache, jobs, out);
-    if !no_jobs && !config.no_cache {
+    let result = do_exec(config, &mut cache, batches, out);
+    if !no_batches && !config.no_cache {
         let cache_full = cache.flush()?;
         warn::check_cache_usage(lints, cache.entries_added, cache.max_entries)?;
         warn::check_cache_full(lints, cache_full)?;
@@ -259,7 +259,7 @@ fn run(
     let result = match result {
         _ if config.dry_run => Ok(RunResult::AllGood { cmds: 0, files: 0 }),
         Ok(true) => Ok(RunResult::AllGood {
-            cmds: n_jobs,
+            cmds: n_batches,
             files: files_linted,
         }),
         Ok(false) => Ok(RunResult::Errors),
@@ -279,14 +279,14 @@ fn run(
 fn do_exec(
     config: &Config,
     cache: &mut (impl CacheWriter + ?Sized),
-    jobs: Vec<batch::Batch>,
+    batches: Vec<batch::Batch>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     if config.ninja {
         ninja::exec(
             cache,
             config.cache.as_path(),
-            jobs,
+            batches,
             config.cores,
             config.dry_run,
             config.no_capture,
@@ -298,7 +298,7 @@ fn do_exec(
     } else {
         exec::exec(
             cache,
-            jobs,
+            batches,
             config.cores,
             config.no_capture,
             config.progress_format,

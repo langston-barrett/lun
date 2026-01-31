@@ -316,10 +316,10 @@ fn command_to_string(cmd: &process::Command) -> String {
     }
 }
 
-fn jobs_to_string(jobs: &[batch::Batch]) -> Vec<String> {
+fn batches_to_string(batches: &[batch::Batch]) -> Vec<String> {
     let mut result = Vec::new();
-    for job in jobs {
-        let cmd = job.to_command();
+    for batch in batches {
+        let cmd = batch.to_command();
         let cmd_str = command_to_string(&cmd);
         result.push(cmd_str);
     }
@@ -384,7 +384,7 @@ fn test(path: &'static str) {
             false,
             &mut progress,
         );
-        let out = jobs_to_string(&batches);
+        let out = batches_to_string(&batches);
         assert_eq!(
             out,
             scenario.expected_output,
