@@ -43,7 +43,7 @@ run --fresh
 [1/3] Planning
 [2/3] Planning
 [3/3] Planning
-[1/1] echo <TEMP>/untracked.txt <TEMP>/tracked.txt
+[1/1] echo <TEMP>/tracked.txt <TEMP>/untracked.txt
 [1/1] 2 files linted
 ```
 

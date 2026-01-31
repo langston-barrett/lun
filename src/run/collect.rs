@@ -53,7 +53,7 @@ fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let strip = root == env::current_dir()?;
-    let mut files: Vec<_> = stdout
+    let files: Vec<_> = stdout
         .lines()
         .filter(|line| !line.is_empty())
         .map(|p| {
@@ -65,7 +65,6 @@ fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
             }
         })
         .collect();
-    files.sort_unstable();
     Ok(files)
 }
 
@@ -134,6 +133,7 @@ pub(crate) fn go(
         walk(root, cache_dir)?
     };
     filter::filter(&only, skip, &mut paths)?;
+    paths.sort_unstable();
 
     let mut files = Vec::with_capacity(paths.len());
     for path in paths {

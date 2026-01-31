@@ -1,47 +1,29 @@
-use std::io::IsTerminal;
-
-use tracing::{Level, level_filters::LevelFilter};
+use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{
     fmt::format::FmtSpan, layer::SubscriberExt as _, util::SubscriberInitExt as _,
 };
 
-use crate::cli::log;
-
-fn verbosity_to_log_level(verbosity: u8) -> Level {
-    match verbosity {
-        0 => Level::WARN,
-        1 => Level::INFO,
-        2 => Level::DEBUG,
-        _ => Level::TRACE,
-    }
-}
+use crate::out;
 
 #[allow(clippy::unwrap_used)]
-pub(crate) fn init_tracing(opts: log::LogOptions) {
-    let effective_verbosity = opts.verbose.saturating_sub(opts.quiet);
-    let verbose = verbosity_to_log_level(effective_verbosity + 1);
-    let ansi = match opts.color {
-        log::Color::Always => true,
-        log::Color::Never => false,
-        log::Color::Auto => std::io::stdout().is_terminal(),
-    };
+pub(crate) fn init_tracing(out_config: out::Config) {
     let tgts = tracing_subscriber::filter::Targets::new()
-        .with_target(env!("CARGO_CRATE_NAME"), verbose)
+        .with_target(env!("CARGO_CRATE_NAME"), out_config.verbosity)
         .with_target("regex", LevelFilter::OFF)
         .with_default(LevelFilter::OFF);
-    if opts.log_timestamp {
+    if out_config.timestamps {
         let builder = tracing_subscriber::fmt::fmt()
             .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-            .with_max_level(verbose)
+            .with_max_level(out_config.verbosity)
             .with_target(false)
-            .with_ansi(ansi);
+            .with_ansi(out_config.color);
         builder.finish().with(tgts).try_init().unwrap();
     } else {
         let builder = tracing_subscriber::fmt::fmt()
             .with_span_events(FmtSpan::ENTER | FmtSpan::CLOSE)
-            .with_max_level(verbose)
+            .with_max_level(out_config.verbosity)
             .with_target(false)
-            .with_ansi(ansi)
+            .with_ansi(out_config.color)
             .without_time();
         builder.finish().with(tgts).try_init().unwrap();
     }

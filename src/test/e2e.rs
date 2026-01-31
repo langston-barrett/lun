@@ -7,6 +7,8 @@ use expect_test::expect;
 
 use std::env;
 
+use crate::out;
+
 #[derive(Debug)]
 struct Command {
     args: Vec<String>,
@@ -248,7 +250,8 @@ fn run_test(test_path: &Path) -> Result<()> {
         let mut output_buffer: Vec<u8> = Vec::new();
 
         // Run with the temp directory as working directory
-        let result = crate::go(cli, &paths, config, &mut output_buffer);
+        let out_config = out::Config::new(cli.log);
+        let result = crate::go(cli, &paths, config, out_config, &mut output_buffer);
 
         // Get captured output and normalize escape sequences
         let captured = {
