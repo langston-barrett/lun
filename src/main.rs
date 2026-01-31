@@ -5,14 +5,11 @@
 mod add;
 mod cache;
 mod cli;
-mod cmd;
 mod config;
 mod entry;
-mod exec;
 mod file;
 mod git;
 mod init;
-mod job;
 mod known;
 mod log;
 mod out;

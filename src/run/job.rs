@@ -2,7 +2,7 @@ use std::{num::NonZero, process};
 
 use tracing::debug;
 
-use crate::{cmd, config::Args, file};
+use crate::{config::Args, file, run::cmd};
 
 pub(crate) fn display_cmd(c: &process::Command) -> String {
     if c.get_args().next().is_none() {
