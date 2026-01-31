@@ -332,13 +332,23 @@ fn test_file(name: &str) {
 }
 
 #[test]
+fn gitignore() {
+    test_file("gitignore");
+}
+
+#[test]
+fn global_ignore() {
+    test_file("global-ignore");
+}
+
+#[test]
 fn ux_err_bogus_command() {
     test_file("ux-err-bogus-command");
 }
 
 #[test]
-fn ux_err_missing_config() {
-    test_file("ux-err-missing-config");
+fn ux_err_invalid_glob() {
+    test_file("ux-err-invalid-glob");
 }
 
 #[test]
@@ -347,8 +357,8 @@ fn ux_err_invalid_toml() {
 }
 
 #[test]
-fn ux_err_invalid_glob() {
-    test_file("ux-err-invalid-glob");
+fn ux_err_missing_config() {
+    test_file("ux-err-missing-config");
 }
 
 #[test]
@@ -372,6 +382,11 @@ fn ux_failure() {
 }
 
 #[test]
+fn ux_known() {
+    test_file("ux-known");
+}
+
+#[test]
 fn ux_long_path_name() {
     test_file("ux-long-path");
 }
@@ -387,21 +402,64 @@ fn ux_success() {
 }
 
 #[test]
-fn ux_known() {
-    test_file("ux-known");
-}
-
-#[test]
-fn global_ignore() {
-    test_file("global-ignore");
-}
-
-#[test]
-fn gitignore() {
-    test_file("gitignore");
+fn ux_quiet() {
+    test_file("ux-quiet");
 }
 
 #[test]
 fn vcs() {
     test_file("vcs");
+}
+
+#[test]
+fn all_e2e_files_have_tests() {
+    // Read the e2e.rs source to find all test_file("...") calls
+    let source = fs::read_to_string("src/test/e2e.rs").expect("Failed to read e2e.rs");
+    let mut tested: Vec<String> = source
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.starts_with("test_file(\"") {
+                let start = trimmed.find('"')? + 1;
+                let end = trimmed[start..].find('"')? + start;
+                Some(trimmed[start..end].to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    tested.sort();
+
+    // Read all .md files in tests/e2e/
+    let mut files_on_disk: Vec<String> = fs::read_dir("tests/e2e")
+        .expect("Failed to read tests/e2e directory")
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
+            if path.extension()? == "md" {
+                path.file_stem()?.to_str().map(String::from)
+            } else {
+                None
+            }
+        })
+        .collect();
+    files_on_disk.sort();
+
+    let missing_tests: Vec<_> = files_on_disk
+        .iter()
+        .filter(|f| !tested.contains(f))
+        .collect();
+
+    let extra_tests: Vec<_> = tested
+        .iter()
+        .filter(|f| !files_on_disk.contains(f))
+        .collect();
+
+    if !missing_tests.is_empty() || !extra_tests.is_empty() {
+        panic!(
+            "e2e test coverage mismatch!\n\
+             Files without tests: {missing_tests:?}\n\
+             Tests without files: {extra_tests:?}",
+        );
+    }
 }
