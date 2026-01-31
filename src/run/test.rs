@@ -1,11 +1,8 @@
-mod e2e;
-mod warn;
-
 use crate::{
     cache::{self, CacheWriter},
-    cli, cmd, file, out,
+    cli, file, out,
     progress::{Format, Progress},
-    run::{self, filter, plan},
+    run::{self, cmd, filter, plan},
 };
 
 use anyhow::{Context, Result};

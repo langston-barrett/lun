@@ -3,7 +3,12 @@ use std::{num::NonZeroUsize, path::Path, sync::Arc};
 
 use tracing::{debug, trace};
 
-use crate::{cache, cmd, file as files, git, job, progress::Progress, tool};
+use crate::{
+    cache, file as files, git,
+    progress::Progress,
+    run::{cmd, job},
+    tool,
+};
 
 fn is_match(tool: &Arc<tool::Tool>, f: &files::File, cwd: &Path) -> bool {
     let path = f.path.as_path();

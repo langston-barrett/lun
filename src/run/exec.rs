@@ -11,10 +11,10 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use tracing::{debug, error, trace};
 
+use crate::cache;
 use crate::cache::CacheWriter;
-use crate::job;
 use crate::progress::{Format, Progress};
-use crate::{cache, cmd};
+use crate::run::{cmd, job};
 
 #[derive(Debug)]
 enum ReporterEvent {

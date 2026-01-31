@@ -8,7 +8,7 @@ use anyhow::{Context as _, Result};
 use tracing::{debug, error, trace};
 use xxhash_rust::xxh3::Xxh3;
 
-use crate::{cache, cache::CacheWriter, cmd};
+use crate::{cache, cache::CacheWriter, run::cmd};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(

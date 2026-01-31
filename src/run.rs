@@ -13,15 +13,21 @@ use anyhow::{Context, Result};
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, trace, warn};
 
-pub(crate) mod collect;
-pub(crate) mod filter;
-pub(crate) mod ninja;
-pub(crate) mod plan;
+mod cmd;
+mod collect;
+mod exec;
+mod filter;
+mod job;
+mod ninja;
+mod plan;
+
+#[cfg(test)]
+mod test;
 
 use crate::{
     Paths,
     cache::{self, CacheWriter},
-    cli, config, exec,
+    cli, config,
     file::{self, File},
     git, out,
     progress::{self, Format, Progress},
@@ -273,7 +279,7 @@ fn run(
 fn do_exec(
     config: &Config,
     cache: &mut (impl CacheWriter + ?Sized),
-    jobs: Vec<crate::cmd::Command>,
+    jobs: Vec<cmd::Command>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     if config.ninja {
