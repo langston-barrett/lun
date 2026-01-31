@@ -378,6 +378,7 @@ fn lint(run_cli: &cli::Run, config: &config::Config, lints: &Warns) -> Result<()
 
 fn clear_term() {
     print!("\x1B[2J\x1B[1;1H");
+    drop(io::stdout().flush());
 }
 
 // TODO: A "true" watch mode that updates an internal model of the filesystem
