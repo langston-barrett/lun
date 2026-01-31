@@ -11,8 +11,9 @@ use ignore::WalkBuilder;
 use tracing::debug;
 
 use crate::{
-    file, filter,
+    file,
     progress::{Format, Progress},
+    run::filter,
 };
 
 fn get_staged() -> Result<Vec<String>> {
@@ -52,7 +53,7 @@ fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let strip = root == env::current_dir()?;
-    let files: Vec<_> = stdout
+    let mut files: Vec<_> = stdout
         .lines()
         .filter(|line| !line.is_empty())
         .map(|p| {
@@ -64,6 +65,7 @@ fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
             }
         })
         .collect();
+    files.sort_unstable();
     Ok(files)
 }
 

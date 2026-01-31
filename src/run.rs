@@ -13,12 +13,17 @@ use anyhow::{Context, Result};
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, trace, warn};
 
+pub(crate) mod collect;
+pub(crate) mod filter;
+pub(crate) mod ninja;
+pub(crate) mod plan;
+
 use crate::{
     Paths,
     cache::{self, CacheWriter},
-    cli, collect, config, exec,
+    cli, config, exec,
     file::{self, File},
-    git, ninja, plan,
+    git,
     progress::{self, Format, Progress},
     tool,
     warn::{self, warns::Warns},

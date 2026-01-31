@@ -3,9 +3,9 @@ mod warn;
 
 use crate::{
     cache::{self, CacheWriter},
-    cli, cmd, file, filter, plan,
+    cli, cmd, file,
     progress::{Format, Progress},
-    run,
+    run::{self, filter, plan},
 };
 
 use anyhow::{Context, Result};
