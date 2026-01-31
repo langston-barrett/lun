@@ -13,11 +13,11 @@ use anyhow::{Context, Result};
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, trace, warn};
 
+mod batch;
 mod cmd;
 mod collect;
 mod exec;
 mod filter;
-mod job;
 mod ninja;
 mod plan;
 

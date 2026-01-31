@@ -6,7 +6,7 @@ use tracing::{debug, trace};
 use crate::{
     cache, file as files, git,
     progress::Progress,
-    run::{cmd, job},
+    run::{batch, cmd},
     tool,
 };
 
@@ -150,5 +150,5 @@ pub(crate) fn plan<C: cache::Cache + ?Sized, W: Write + ?Sized>(
         debug_assert!(cmd.files.iter().all(|f| f.content_stamp.is_some()));
         commands.push(cmd);
     }
-    job::create_jobs(commands, cores, no_batch)
+    batch::create_jobs(commands, cores, no_batch)
 }

@@ -14,7 +14,7 @@ use tracing::{debug, error, trace};
 use crate::cache;
 use crate::cache::CacheWriter;
 use crate::progress::{Format, Progress};
-use crate::run::{cmd, job};
+use crate::run::{batch, cmd};
 
 #[derive(Debug)]
 enum ReporterEvent {
@@ -69,7 +69,7 @@ pub(crate) fn exec(
                     }
 
                     let c = cmd.to_command();
-                    let cmd_str = job::display_cmd(&c);
+                    let cmd_str = batch::display_cmd(&c);
                     debug!("{}: running", cmd_str);
                     drop(tx.send(ReporterEvent::Start {
                         cmd: cmd_str.clone(),
