@@ -50,7 +50,14 @@ pub(crate) fn exec(
     let failed = AtomicBool::new(false);
 
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
-        s.spawn(|| reporter(num_threads, rx, Progress::new(format, Some(n_batches), out)));
+        s.spawn(|| {
+            reporter(
+                keep_going,
+                num_threads,
+                rx,
+                Progress::new(format, Some(n_batches), out),
+            );
+        });
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
             let tx = tx.clone();
@@ -64,17 +71,16 @@ pub(crate) fn exec(
                     let c = cmd.to_command();
                     let cmd_str = job::display_cmd(&c);
                     debug!("{}: running", cmd_str);
-                    tx.send(ReporterEvent::Start {
+                    drop(tx.send(ReporterEvent::Start {
                         cmd: cmd_str.clone(),
-                    })
-                    .ok();
+                    }));
                     let result = run(c, &cmd_str, no_capture)?;
                     let success = result.status.success();
 
                     if !success {
                         failed.store(true, Ordering::Relaxed);
                         if let Some(output) = result.failure_output {
-                            tx.send(ReporterEvent::Failed { output }).ok();
+                            drop(tx.send(ReporterEvent::Failed { output }));
                         }
                     }
                     debug!(
@@ -82,7 +88,7 @@ pub(crate) fn exec(
                         cmd_str,
                         if success { "success" } else { "failed" },
                     );
-                    tx.send(ReporterEvent::Done { cmd: cmd_str }).ok();
+                    drop(tx.send(ReporterEvent::Done { cmd: cmd_str }));
                     let hashes = if success {
                         done(cmd, mtime_enabled)
                     } else {
@@ -115,6 +121,7 @@ pub(crate) fn exec(
 }
 
 fn reporter<W: Write + ?Sized>(
+    keep_going: bool,
     n_threads: usize,
     rx: mpsc::Receiver<ReporterEvent>,
     mut progress: Progress<'_, W>,
@@ -135,6 +142,9 @@ fn reporter<W: Write + ?Sized>(
                 let mut msg = b"Command failed:".to_vec();
                 msg.extend_from_slice(&output);
                 progress.fail(&msg);
+                if !keep_going {
+                    return;
+                }
             }
             Ok(ReporterEvent::Done { cmd }) => {
                 running.remove(&cmd);
