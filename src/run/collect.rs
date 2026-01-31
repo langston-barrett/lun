@@ -133,6 +133,7 @@ pub(crate) fn go(
         walk(root, cache_dir)?
     };
     filter::filter(&only, skip, &mut paths)?;
+    #[cfg(test)]
     paths.sort_unstable();
 
     let mut files = Vec::with_capacity(paths.len());
