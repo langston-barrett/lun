@@ -4,6 +4,29 @@ use tracing::debug;
 
 use crate::{config::Args, file, run::cmd};
 
+#[derive(Debug)]
+pub(super) struct Batch {
+    #[allow(dead_code)] // TODO
+    idx: usize,
+    #[allow(dead_code)] // TODO
+    tot: usize,
+    pub(crate) cmd: cmd::Command,
+}
+
+impl Batch {
+    fn one_of_one(cmd: cmd::Command) -> Self {
+        Self {
+            idx: 1,
+            tot: 1,
+            cmd,
+        }
+    }
+
+    pub(crate) fn to_command(&self) -> process::Command {
+        self.cmd.to_command()
+    }
+}
+
 pub(crate) fn display_cmd(c: &process::Command) -> String {
     if c.get_args().next().is_none() {
         c.get_program().display().to_string()
@@ -23,7 +46,7 @@ pub(crate) fn create_jobs(
     commands: Vec<cmd::Command>,
     cores: NonZero<usize>,
     no_batch: bool,
-) -> Vec<cmd::Command> {
+) -> Vec<Batch> {
     if commands.is_empty() {
         debug!("No commands to execute");
         return Vec::new();
@@ -39,63 +62,52 @@ pub(crate) fn create_jobs(
     batches
 }
 
-fn unbatch(cmd: cmd::Command) -> Vec<cmd::Command> {
-    if cmd.files.is_empty() {
-        return Vec::new();
-    }
-    if cmd.files.len() == 1 || cmd.tool.args == Args::None || cmd.tool.args == Args::All {
-        return vec![cmd];
-    }
-    if cmd.tool.args == Args::One {
-        return cmd
-            .files
-            .into_iter()
-            .map(|file| cmd::Command {
-                tool: cmd.tool.clone(),
-                files: vec![file],
-            })
-            .collect();
-    }
+fn one_per_file(cmd: cmd::Command) -> Vec<Batch> {
+    let tot = cmd.files.len();
     cmd.files
         .into_iter()
-        .map(|file| cmd::Command {
-            tool: cmd.tool.clone(),
-            files: vec![file],
+        .enumerate()
+        .map(|(idx, file)| Batch {
+            idx,
+            tot,
+            cmd: cmd::Command {
+                tool: cmd.tool.clone(),
+                files: vec![file],
+            },
         })
         .collect()
 }
 
-fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
+fn unbatch(cmd: cmd::Command) -> Vec<Batch> {
+    if cmd.files.is_empty() {
+        return Vec::new();
+    }
+    // TODO: Is this Args::None case right?
+    if cmd.tool.args == Args::None || cmd.tool.args == Args::All {
+        return vec![Batch::one_of_one(cmd)];
+    }
+    one_per_file(cmd)
+}
+
+fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<Batch> {
     debug_assert!(!cmd.files.is_empty());
     if cmd.files.is_empty() {
         return Vec::new();
     }
     let cores = cores.get();
-    if cmd.files.len() == 1 || cmd.tool.args == Args::None || cmd.tool.args == Args::All {
-        return vec![cmd];
+    // TODO: Is this Args::None case right?
+    if cmd.tool.args == Args::None || cmd.tool.args == Args::All {
+        return vec![Batch::one_of_one(cmd)];
     }
     if cmd.tool.args == Args::One {
-        return cmd
-            .files
-            .into_iter()
-            .map(|file| cmd::Command {
-                tool: cmd.tool.clone(),
-                files: vec![file],
-            })
-            .collect();
+        return one_per_file(cmd);
     }
     if cores == 1 {
-        return vec![cmd];
+        return vec![Batch::one_of_one(cmd)];
     }
+    debug_assert!(matches!(cmd.tool.args, Args::Many));
     if cmd.files.len() < cores {
-        return cmd
-            .files
-            .into_iter()
-            .map(|file| cmd::Command {
-                tool: cmd.tool.clone(),
-                files: vec![file],
-            })
-            .collect();
+        return one_per_file(cmd);
     }
 
     cmd.files.sort_by(|a, b| b.size.cmp(&a.size));
@@ -113,8 +125,10 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
         jobs[smallest_batch_idx].0.push(file);
     }
 
+    let tot = jobs.len();
     jobs.into_iter()
-        .filter_map(|(mut files, sz)| {
+        .enumerate()
+        .filter_map(|(idx, (mut files, sz))| {
             if files.is_empty() {
                 None
             } else {
@@ -125,7 +139,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<cmd::Command> {
                 };
                 let c = cmd.to_command();
                 debug!("Batched {} (size: {sz})", display_cmd(&c));
-                Some(cmd)
+                Some(Batch { idx, tot, cmd })
             }
         })
         .collect()
@@ -181,7 +195,7 @@ mod tests {
         let batches = unbatch(cmd);
         // Args::None should keep all files in one batch
         assert_eq!(batches.len(), 1);
-        assert_eq!(batches[0].files.len(), 3);
+        assert_eq!(batches[0].cmd.files.len(), 3);
     }
 
     #[test]
@@ -197,7 +211,7 @@ mod tests {
         let batches = unbatch(cmd);
         // Args::All should keep all files in one batch
         assert_eq!(batches.len(), 1);
-        assert_eq!(batches[0].files.len(), 3);
+        assert_eq!(batches[0].cmd.files.len(), 3);
     }
 
     #[test]
@@ -213,9 +227,9 @@ mod tests {
         let batches = unbatch(cmd);
         // Args::One should split into one file per batch
         assert_eq!(batches.len(), 3);
-        assert_eq!(batches[0].files.len(), 1);
-        assert_eq!(batches[1].files.len(), 1);
-        assert_eq!(batches[2].files.len(), 1);
+        assert_eq!(batches[0].cmd.files.len(), 1);
+        assert_eq!(batches[1].cmd.files.len(), 1);
+        assert_eq!(batches[2].cmd.files.len(), 1);
     }
 
     #[test]
@@ -247,7 +261,7 @@ mod tests {
         let batches = batch(cmd, cores);
         // Args::None should keep all files together even with multiple cores
         assert_eq!(batches.len(), 1);
-        assert_eq!(batches[0].files.len(), 3);
+        assert_eq!(batches[0].cmd.files.len(), 3);
     }
 
     #[test]
@@ -264,7 +278,7 @@ mod tests {
         let batches = batch(cmd, cores);
         // Args::All should keep all files together even with multiple cores
         assert_eq!(batches.len(), 1);
-        assert_eq!(batches[0].files.len(), 3);
+        assert_eq!(batches[0].cmd.files.len(), 3);
     }
 
     #[test]

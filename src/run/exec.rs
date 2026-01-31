@@ -26,7 +26,7 @@ enum ReporterEvent {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn exec(
     cache_writer: &mut (impl CacheWriter + ?Sized),
-    batches: Vec<cmd::Command>,
+    batches: Vec<batch::Batch>,
     cores: NonZeroUsize,
     no_capture: bool,
     format: Format,
@@ -63,12 +63,12 @@ pub(crate) fn exec(
             let tx = tx.clone();
             let results = batches
                 .into_par_iter()
-                .map(|cmd| -> Result<(bool, Vec<cache::KeyHash>)> {
+                .map(|batch| -> Result<(bool, Vec<cache::KeyHash>)> {
                     if !keep_going && failed.load(Ordering::Relaxed) {
                         return Ok((false, Vec::new()));
                     }
 
-                    let c = cmd.to_command();
+                    let c = batch.to_command();
                     let cmd_str = batch::display_cmd(&c);
                     debug!("{}: running", cmd_str);
                     drop(tx.send(ReporterEvent::Start {
@@ -90,7 +90,7 @@ pub(crate) fn exec(
                     );
                     drop(tx.send(ReporterEvent::Done { cmd: cmd_str }));
                     let hashes = if success {
-                        done(cmd, mtime_enabled)
+                        done(batch.cmd, mtime_enabled)
                     } else {
                         Vec::new()
                     };
