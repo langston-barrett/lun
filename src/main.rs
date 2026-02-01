@@ -110,18 +110,9 @@ pub(crate) fn go(
             }
         },
         cli::Command::Run(run) => {
-            let start_time = match &cli.command {
-                cli::Command::Run(run) => match run.print_timings {
-                    cli::PrintTimings::None => None,
-                    cli::PrintTimings::Total => env.start_time,
-                },
-                _ => env.start_time,
-            };
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(
-                env, paths, run, &config, &lints, out_config, start_time, out,
-            )
+            run::go(env, paths, run, &config, &lints, out_config, out)
         }
         cli::Command::Init(init) => {
             let config_path = paths

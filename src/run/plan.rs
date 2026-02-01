@@ -68,6 +68,11 @@ fn need_file<C: cache::Cache + ?Sized>(
         }
         false
     } else if let Ok(true) = git::file_changed_from_refs(&file.path, refs) {
+        debug!(
+            "{}: needed for {}",
+            file.path.display(),
+            tool.display_name(),
+        );
         true
     } else {
         cache.done(&content_key);
