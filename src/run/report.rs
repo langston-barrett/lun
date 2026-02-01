@@ -1,9 +1,7 @@
 //! Format:
 //!
 //! ```text
-//! [3/32] ttlint (1/8)
-//! [4/32] ruff (5/10)
-//! [5/32] clippy (1/1), ttlint (2/8), ttlint (3/8), ruff (6/10)...
+//! [5/32] clippy (1/1), ttlint (2-3/8), ruff (6/10)...
 //! ```
 
 use std::{
