@@ -22,6 +22,6 @@ run
 ```
 [0/?] Collecting files
 [1/1] Planning
-[1/1] echo (1 / 1)
+[1/1] echo (1/1)
 [1/1] 1 file linted
 ```

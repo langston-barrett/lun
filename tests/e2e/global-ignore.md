@@ -45,6 +45,6 @@ run
 [2/4] Planning
 [3/4] Planning
 [4/4] Planning
-[1/1] echo (1 / 1)
+[1/1] echo (1/1)
 [1/1] 1 file linted
 ```

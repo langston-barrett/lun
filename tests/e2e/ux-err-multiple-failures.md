@@ -44,11 +44,11 @@ run --keep-going
 [4/6] Planning
 [5/6] Planning
 [6/6] Planning
-[1/2] false1 (1 / 1)
+[1/2] false1 (1/1)
 Command failed:
 false <TEMP>/file.a
 
-[2/2] false2 (1 / 1)
+[2/2] false2 (1/1)
 Command failed:
 false <TEMP>/file.b
 ```
