@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn test_args_none_keeps_files_together() {
+    fn args_none_keeps_files_together() {
         let tool = make_test_tool(Args::None);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -189,7 +189,7 @@ mod tests {
     }
 
     #[test]
-    fn test_args_all_keeps_files_together() {
+    fn args_all_keeps_files_together() {
         let tool = make_test_tool(Args::All);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -205,7 +205,7 @@ mod tests {
     }
 
     #[test]
-    fn test_args_one_splits_files() {
+    fn args_one_splits_files() {
         let tool = make_test_tool(Args::One);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -223,7 +223,7 @@ mod tests {
     }
 
     #[test]
-    fn test_args_many_splits_files_in_unbatch() {
+    fn args_many_splits_files_in_unbatch() {
         let tool = make_test_tool(Args::Many);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_respects_args_none() {
+    fn batch_respects_args_none() {
         let tool = make_test_tool(Args::None);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_respects_args_all() {
+    fn batch_respects_args_all() {
         let tool = make_test_tool(Args::All);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -272,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_splits_args_one() {
+    fn batch_splits_args_one() {
         let tool = make_test_tool(Args::One);
         let files = vec![
             make_test_file("test1.rs", 100),
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_batch_splits_args_one_with_one_core() {
+    fn batch_splits_args_one_with_one_core() {
         let tool = make_test_tool(Args::One);
         let files = vec![
             make_test_file("test1.rs", 100),
