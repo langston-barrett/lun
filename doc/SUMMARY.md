@@ -16,4 +16,5 @@
 # Developer documentation
 
 - [Build](./dev/build.md)
+- [Issues](./dev/issues.md)
 - [Release](./dev/release.md)
