@@ -148,15 +148,13 @@ fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatche
             write!(s, ", ").unwrap();
         }
         write!(s, "{tool} (").unwrap();
-        let tot_batches = rbs.len();
+        let min = *rbs.running.first().unwrap() + 1;
+        let max = *rbs.running.last().unwrap() + 1;
         let all_batches = rbs.total;
-        for (idx, b) in rbs.iter().enumerate() {
-            write!(s, "{}", b + 1).unwrap();
-            if idx + 1 != tot_batches {
-                s.push(',');
-            } else {
-                write!(s, " / {all_batches})").unwrap();
-            }
+        if min == max {
+            write!(s, "{min}/{all_batches})").unwrap();
+        } else {
+            write!(s, "{min}-{max}/{all_batches})").unwrap();
         }
         if s.len() > 60 {
             return;

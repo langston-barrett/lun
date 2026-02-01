@@ -28,7 +28,7 @@ run
 [0/?] Collecting files
 [1/2] Planning
 [2/2] Planning
-[1/2] false (1 / 1)
+[1/2] false (1/1)
 Command failed:
 false
 ```
