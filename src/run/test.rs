@@ -133,8 +133,8 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
     }
     let env = crate::env::Env {
         cwd: PathBuf::from("."),
-        is_tty: false,
         start_time: None,
+        term_width: None,
     };
     scenario.out_config = out::Config::new(&env, cli.log);
 }
