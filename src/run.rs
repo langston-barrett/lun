@@ -314,6 +314,7 @@ pub(crate) fn go(
         let result = run(&config, &files, lints, start_time, out);
         #[cfg(debug_assertions)]
         {
+            debug!("Running again to check cache");
             let debug_cache = paths.cache.join("debug");
             drop(fs::remove_dir_all(&debug_cache));
             drop(fs::create_dir_all(&debug_cache));
