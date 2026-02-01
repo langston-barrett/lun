@@ -537,18 +537,33 @@ fn parse_test_file_debug() {
 }
 
 #[test]
+fn args_all() {
+    test("tests/args-all.md");
+}
+
+#[test]
+fn args_many() {
+    test("tests/args-many.md");
+}
+
+#[test]
+fn args_none() {
+    test("tests/args-none.md");
+}
+
+#[test]
+fn args_none_no_needed_files() {
+    test("tests/args-none-no-needed-files.md");
+}
+
+#[test]
+fn args_one() {
+    test("tests/args-one.md");
+}
+
+#[test]
 fn batch2() {
     test("tests/batch2.md");
-}
-
-#[test]
-fn check() {
-    test("tests/check.md");
-}
-
-#[test]
-fn configs() {
-    test("tests/configs.md");
 }
 
 #[test]
@@ -564,6 +579,16 @@ fn cd() {
 #[test]
 fn changing_cli() {
     test("tests/changing-cli.md");
+}
+
+#[test]
+fn check() {
+    test("tests/check.md");
+}
+
+#[test]
+fn configs() {
+    test("tests/configs.md");
 }
 
 #[test]
@@ -584,6 +609,11 @@ fn fix() {
 #[test]
 fn format() {
     test("tests/format.md");
+}
+
+#[test]
+fn include_unchanged() {
+    test("tests/include-unchanged.md");
 }
 
 #[test]
@@ -614,29 +644,4 @@ fn tool_override() {
 #[test]
 fn twice() {
     test("tests/twice.md");
-}
-
-#[test]
-fn args_none() {
-    test("tests/args-none.md");
-}
-
-#[test]
-fn args_one() {
-    test("tests/args-one.md");
-}
-
-#[test]
-fn args_many() {
-    test("tests/args-many.md");
-}
-
-#[test]
-fn args_all() {
-    test("tests/args-all.md");
-}
-
-#[test]
-fn include_unchanged() {
-    test("tests/include-unchanged.md");
 }
