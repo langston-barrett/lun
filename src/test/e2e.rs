@@ -332,6 +332,11 @@ fn test_file(name: &str) {
 }
 
 #[test]
+fn args_none_no_needed_files() {
+    test_file("args-none-no-needed-files");
+}
+
+#[test]
 fn gitignore() {
     test_file("gitignore");
 }
