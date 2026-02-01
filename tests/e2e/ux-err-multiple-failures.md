@@ -45,10 +45,10 @@ run --keep-going
 [5/6] Planning
 [6/6] Planning
 [1/2] false1 (1/1)
-Command failed:
+FAILED:
 false <TEMP>/file.a
-
 [2/2] false2 (1/1)
-Command failed:
+FAILED:
 false <TEMP>/file.b
+[2/2] 2 errors
 ```

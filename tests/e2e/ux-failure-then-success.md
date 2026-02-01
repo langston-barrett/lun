@@ -29,6 +29,7 @@ run
 [1/2] Planning
 [2/2] Planning
 [1/2] false (1/1)
-Command failed:
+FAILED:
 false
+[0/2] 1 error
 ```

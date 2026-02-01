@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs,
     io::{self, Write},
     num::NonZeroUsize,
@@ -31,7 +30,7 @@ use crate::{
     cli, config,
     file::{self, File},
     git, out,
-    progress::{self, Format, Progress},
+    progress::{Format, Progress},
     tool,
     warn::{self, warns::Warns},
 };
@@ -191,33 +190,12 @@ fn mk_config(
     })
 }
 
-#[derive(Debug, PartialEq)]
-pub(crate) enum RunResult {
-    AllGood { cmds: usize, files: usize },
-    Errors,
-}
-
-impl From<RunResult> for bool {
-    fn from(value: RunResult) -> Self {
-        Self::from(&value)
-    }
-}
-
-impl From<&RunResult> for bool {
-    fn from(value: &RunResult) -> Self {
-        match value {
-            RunResult::AllGood { .. } => true,
-            RunResult::Errors => false,
-        }
-    }
-}
-
 fn run(
     config: &Config,
     files: &[File],
     lints: &Warns,
     out: &mut (impl Write + Send),
-) -> Result<RunResult> {
+) -> Result<bool> {
     trace!(?config);
     debug_assert!(files.iter().all(|f| f.content_stamp.is_none()));
     let cache_file = config.cache.join("cache");
@@ -245,35 +223,13 @@ fn run(
         cache.flush()?;
     }
     let no_batches = batches.is_empty();
-    let n_batches = batches.len();
-    let files_linted = batches
-        .iter()
-        .flat_map(|batch| batch.cmd.files.iter().map(|f| &f.path))
-        .collect::<HashSet<_>>()
-        .len();
-    let result = do_exec(config, &mut cache, batches, out);
+    let result = do_exec(config, &mut cache, batches, out)?;
     if !no_batches && !config.no_cache {
         let cache_full = cache.flush()?;
         warn::check_cache_usage(lints, cache.entries_added, cache.max_entries)?;
         warn::check_cache_full(lints, cache_full)?;
     }
-    let result = match result {
-        _ if config.dry_run => Ok(RunResult::AllGood { cmds: 0, files: 0 }),
-        Ok(true) => Ok(RunResult::AllGood {
-            cmds: n_batches,
-            files: files_linted,
-        }),
-        Ok(false) => Ok(RunResult::Errors),
-        Err(e) => {
-            // Write the final newline that report_result would otherwise handle
-            if matches!(config.progress_format, Format::Terminal) {
-                drop(out.write(b"\n"));
-            }
-            Err(e)
-        }
-    }?;
-    report_result(config.progress_format, &result, out);
-    then_else(config, &result)?;
+    then_else(config, result)?;
     Ok(result)
 }
 
@@ -310,8 +266,7 @@ fn do_exec(
     }
 }
 
-fn then_else(config: &Config, result: &RunResult) -> Result<(), anyhow::Error> {
-    let success = bool::from(result);
+fn then_else(config: &Config, success: bool) -> Result<(), anyhow::Error> {
     let (which, cmd_to_run) = if success {
         ("then", config.then.as_deref())
     } else {
@@ -337,12 +292,12 @@ pub(crate) fn go(
     lints: &Warns,
     out_config: out::Config,
     out: &mut (impl Write + Send),
-) -> std::result::Result<RunResult, anyhow::Error> {
+) -> Result<bool> {
     lint(run_cli, config, lints)?;
     fs::create_dir_all(&paths.cache)?; // just to create the dir
     if run_cli.watch {
         watch(paths, out_config, run_cli, config, lints, out)?;
-        Ok(RunResult::AllGood { cmds: 0, files: 0 })
+        Ok(true)
     } else {
         let config = mk_config(paths, out_config, run_cli, config)?;
         let files = config.collect_files(
@@ -363,7 +318,7 @@ pub(crate) fn go(
             let debug_result = run(&debug_config, &files, lints, &mut io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
-                    (Ok(r1), Ok(r2)) => bool::from(r1) == bool::from(r2),
+                    (Ok(r1), Ok(r2)) => r1 == r2,
                     _ => true,
                 },
                 "Results differ between normal and debug cache"
@@ -453,27 +408,6 @@ fn watch(
             run(&config, &files, lints, out)?;
         }
         last_run = time::Instant::now();
-    }
-}
-
-// TODO: Move this into `reporter`
-fn report_result(progress_format: Format, res: &RunResult, out: &mut (impl Write + ?Sized)) {
-    let prefix = progress::prefix(progress_format);
-    match res {
-        RunResult::AllGood { cmds, files: 0 } => {
-            debug_assert_eq!(*cmds, 0);
-            drop(writeln!(out, "{prefix}[{cmds}/{cmds}] 0 files linted"));
-        }
-        RunResult::AllGood { cmds, files: 1 } => {
-            drop(writeln!(out, "{prefix}[{cmds}/{cmds}] 1 file linted"));
-        }
-        RunResult::AllGood { cmds, files } => {
-            drop(writeln!(
-                out,
-                "{prefix}[{cmds}/{cmds}] {files} files linted"
-            ));
-        }
-        RunResult::Errors => (), // output is mirrored to std{out,err}
     }
 }
 

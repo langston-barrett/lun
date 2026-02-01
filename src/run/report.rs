@@ -11,6 +11,8 @@ use std::{
     sync::{Arc, mpsc},
 };
 
+use tracing::error;
+
 use crate::{progress::Progress, run::batch};
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -79,11 +81,13 @@ impl RunningBatches {
 
 pub(super) fn reporter<W: Write + ?Sized>(
     keep_going: bool,
+    total_files: usize,
     rx: mpsc::Receiver<Event>,
     mut progress: Progress<'_, W>,
 ) {
     let mut displayed_batches = String::with_capacity(124);
     let mut running = BTreeMap::new();
+    let mut errors = 0;
     loop {
         match rx.recv() {
             Ok(Event::Start { batch }) => {
@@ -98,10 +102,10 @@ pub(super) fn reporter<W: Write + ?Sized>(
                 progress.report(&displayed_batches);
             }
             Ok(Event::Failed { output }) => {
-                let mut msg = b"Command failed:".to_vec();
-                msg.extend_from_slice(&output);
-                progress.fail(&msg);
+                progress.fail(&output);
+                errors += 1;
                 if !keep_going {
+                    final_report(total_files, errors, progress);
                     return;
                 }
             }
@@ -119,7 +123,8 @@ pub(super) fn reporter<W: Write + ?Sized>(
                     .is_some_and(|t| progress.completed == *t)
                 {
                     debug_assert!(running.values().all(RunningBatches::is_done));
-                    progress.done();
+                    debug_assert!(total_files >= 1);
+                    final_report(total_files, errors, progress);
                     break;
                 }
                 if running
@@ -133,10 +138,8 @@ pub(super) fn reporter<W: Write + ?Sized>(
                     progress.report(&displayed_batches);
                 }
             }
-            Err(_) => {
-                // Mark done to prevent drop from adding a newline;
-                // final newline printing happens in `run::report_result`
-                progress.done();
+            Err(e) => {
+                error!("{e}");
                 break;
             }
         }
@@ -165,5 +168,23 @@ fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatche
         if s.len() > 60 {
             return;
         }
+    }
+}
+
+fn final_report<W: Write + ?Sized>(total_files: usize, errors: usize, progress: Progress<'_, W>) {
+    if total_files == 1 {
+        if errors == 0 {
+            progress.finalize("1 file linted");
+        } else if errors == 1 {
+            progress.finalize("1 error");
+        } else {
+            progress.finalize(&format!("{errors} errors"));
+        }
+    } else if errors == 0 {
+        progress.finalize(&format!("{total_files} files linted"));
+    } else if errors == 1 {
+        progress.finalize("1 error");
+    } else {
+        progress.finalize(&format!("{errors} errors"));
     }
 }

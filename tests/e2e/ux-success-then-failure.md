@@ -31,6 +31,7 @@ run
 [2/2] Planning
 [1/2] true (1/1)
 [2/2] fail (1/1)
-Command failed:
+FAILED:
 bash scripts/fail-slow.sh
+[1/2] 1 error
 ```
