@@ -29,6 +29,6 @@ run
 [0/?] Collecting files
 [1/2] Planning
 [2/2] Planning
-[1/1] echo <TEMP>/really/ridiculously/long/path-name-with-many-components.txt
+[1/1] echo (1 / 1)
 [1/1] 1 file linted
 ```
