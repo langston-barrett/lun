@@ -20,6 +20,7 @@ mod exec;
 mod filter;
 mod ninja;
 mod plan;
+mod report;
 
 #[cfg(test)]
 mod test;
@@ -455,6 +456,7 @@ fn watch(
     }
 }
 
+// TODO: Move this into `reporter`
 fn report_result(progress_format: Format, res: &RunResult, out: &mut (impl Write + ?Sized)) {
     let prefix = progress::prefix(progress_format);
     match res {
