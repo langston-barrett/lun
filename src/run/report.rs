@@ -99,7 +99,7 @@ pub(super) fn reporter<W: Write + ?Sized>(
                         s.start();
                     })
                     .or_insert_with(|| RunningBatches::new(batch.tot));
-                display_batches(&mut displayed_batches, &running);
+                display_batches(&mut displayed_batches, progress.format, &running);
                 debug_assert!(!displayed_batches.is_empty());
                 progress.report(&displayed_batches);
             }
@@ -138,7 +138,7 @@ pub(super) fn reporter<W: Write + ?Sized>(
                     .sum::<usize>()
                     != 0
                 {
-                    display_batches(&mut displayed_batches, &running);
+                    display_batches(&mut displayed_batches, progress.format, &running);
                     debug_assert!(!displayed_batches.is_empty());
                     progress.report(&displayed_batches);
                 }
@@ -152,8 +152,18 @@ pub(super) fn reporter<W: Write + ?Sized>(
 }
 
 #[allow(clippy::unwrap_used)]
-fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatches>) {
+fn display_batches(
+    s: &mut String,
+    format: crate::progress::Format,
+    running: &BTreeMap<Arc<String>, RunningBatches>,
+) {
     s.clear();
+    let term_width = match format {
+        crate::progress::Format::Terminal(width) => width,
+        _ => None,
+    };
+    let estimated_width = 20; // "[N/M] "
+    let max_len = term_width.map(|w| w.saturating_sub(estimated_width).into());
     for (tool, rbs) in running {
         let min = rbs.min + 1;
         let max = rbs.max + 1;
@@ -170,7 +180,7 @@ fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatche
         } else {
             write!(s, "{min}-{max}/{all_batches})").unwrap();
         }
-        if s.len() > 60 {
+        if max_len.is_some_and(|m| s.len() > m) {
             return;
         }
     }
