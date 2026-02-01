@@ -7,10 +7,9 @@
 //! ```
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::BTreeMap,
     fmt::Write as _,
     io::Write,
-    ops,
     sync::{Arc, mpsc},
 };
 
@@ -40,56 +39,62 @@ pub(super) enum Event {
 
 #[derive(Debug)]
 struct RunningBatches {
-    total: usize,
-    running: BTreeSet<usize>,
+    min: usize,
+    max: usize,
+    tot: usize,
 }
 
 impl RunningBatches {
-    fn insert(&mut self, n: usize) -> bool {
-        self.running.insert(n)
+    fn new(tot: usize) -> Self {
+        Self {
+            min: 0,
+            max: 0,
+            tot,
+        }
     }
-}
 
-impl ops::Deref for RunningBatches {
-    type Target = BTreeSet<usize>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.running
+    fn ok(&self) {
+        debug_assert!(self.max < self.tot);
     }
-}
 
-impl ops::DerefMut for RunningBatches {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.running
+    fn start(&mut self) {
+        self.max += 1;
+        self.ok();
+    }
+
+    fn done(&mut self) -> bool {
+        self.min += 1;
+        self.ok();
+        self.min + 1 == self.tot
+    }
+
+    fn is_done(&self) -> bool {
+        self.ok();
+        self.min == self.tot || self.max == self.tot
+    }
+
+    fn num_running(&self) -> usize {
+        self.ok();
+        self.max.saturating_sub(self.min)
     }
 }
 
 pub(super) fn reporter<W: Write + ?Sized>(
     keep_going: bool,
-    n_threads: usize,
     rx: mpsc::Receiver<Event>,
     mut progress: Progress<'_, W>,
 ) {
     let mut displayed_batches = String::with_capacity(124);
     let mut running = BTreeMap::new();
-    let mut seen = HashMap::with_capacity(n_threads);
     loop {
         match rx.recv() {
             Ok(Event::Start { batch }) => {
-                let n = *seen
-                    .entry(batch.name.clone())
-                    .and_modify(|s| *s += 1)
-                    .or_insert(0);
                 running
                     .entry(batch.name.clone())
                     .and_modify(|s: &mut RunningBatches| {
-                        let new = s.insert(n);
-                        debug_assert!(new);
+                        s.start();
                     })
-                    .or_insert_with(|| RunningBatches {
-                        total: batch.tot,
-                        running: BTreeSet::from([n]),
-                    });
+                    .or_insert_with(|| RunningBatches::new(batch.tot));
                 display_batches(&mut displayed_batches, &running);
                 debug_assert!(!displayed_batches.is_empty());
                 progress.report(&displayed_batches);
@@ -105,10 +110,8 @@ pub(super) fn reporter<W: Write + ?Sized>(
             #[allow(clippy::unwrap_used)]
             Ok(Event::Done { batch }) => {
                 let running_batches = running.get_mut(batch.name.as_ref()).unwrap();
-                let tot = running_batches.total;
-                let min = *running_batches.iter().next().unwrap();
-                running_batches.remove(&min);
-                if min + 1 == tot {
+                let done = running_batches.done();
+                if done {
                     running.remove(batch.name.as_ref());
                 }
                 progress.increment();
@@ -117,11 +120,16 @@ pub(super) fn reporter<W: Write + ?Sized>(
                     .as_ref()
                     .is_some_and(|t| progress.completed == *t)
                 {
-                    debug_assert!(running.values().all(|r| r.is_empty()));
+                    debug_assert!(running.values().all(RunningBatches::is_done));
                     progress.done();
                     break;
                 }
-                if running.values().map(|rbs| rbs.len()).sum::<usize>() != 0 {
+                if running
+                    .values()
+                    .map(RunningBatches::num_running)
+                    .sum::<usize>()
+                    != 0
+                {
                     display_batches(&mut displayed_batches, &running);
                     debug_assert!(!displayed_batches.is_empty());
                     progress.report(&displayed_batches);
@@ -141,16 +149,16 @@ pub(super) fn reporter<W: Write + ?Sized>(
 fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatches>) {
     s.clear();
     for (tool, rbs) in running {
-        if rbs.is_empty() {
+        let min = rbs.min + 1;
+        let max = rbs.max + 1;
+        if rbs.is_done() || min > max {
             continue;
         }
         if !s.is_empty() {
             write!(s, ", ").unwrap();
         }
         write!(s, "{tool} (").unwrap();
-        let min = *rbs.running.first().unwrap() + 1;
-        let max = *rbs.running.last().unwrap() + 1;
-        let all_batches = rbs.total;
+        let all_batches = rbs.tot;
         if min == max {
             write!(s, "{min}/{all_batches})").unwrap();
         } else {

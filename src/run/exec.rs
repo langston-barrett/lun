@@ -43,12 +43,7 @@ pub(crate) fn exec(
 
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
         s.spawn(|| {
-            report::reporter(
-                keep_going,
-                num_threads,
-                rx,
-                Progress::new(format, Some(n_batches), out),
-            );
+            report::reporter(keep_going, rx, Progress::new(format, Some(n_batches), out));
         });
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
