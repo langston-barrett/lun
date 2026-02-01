@@ -307,7 +307,6 @@ pub(crate) fn go(
     config: &config::Config,
     lints: &Warns,
     out_config: out::Config,
-    start_time: Option<time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     lint(run_cli, config, lints)?;
@@ -324,6 +323,10 @@ pub(crate) fn go(
             &run_cli.skip_files,
             out,
         )?;
+        let start_time = match run_cli.print_timings {
+            cli::PrintTimings::None => None,
+            cli::PrintTimings::Total => env.start_time,
+        };
         let result = run(&config, &files, lints, start_time, out);
         #[cfg(debug_assertions)]
         {
