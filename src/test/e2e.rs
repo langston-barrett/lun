@@ -13,6 +13,15 @@ use crate::out;
 // Mutex to serialize access to colored::control global state
 static COLOR_LOCK: Mutex<()> = Mutex::new(());
 
+/// RAII guard to ensure colored::control state is reset
+struct ColorGuard;
+
+impl Drop for ColorGuard {
+    fn drop(&mut self) {
+        colored::control::unset_override();
+    }
+}
+
 /// Process ANSI escape sequences in output for testing
 /// - Green text is surrounded by `green[TEXT]`
 /// - Red text is surrounded by `red[TEXT]`
@@ -191,6 +200,8 @@ pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
     let _lock = COLOR_LOCK.lock().unwrap();
     
     // Force colors on/off for the colored crate based on ansi_mode
+    // Use RAII guard to ensure state is reset even on early return
+    let _color_guard = ColorGuard;
     if ansi_mode {
         colored::control::set_override(true);
     } else {
@@ -346,9 +357,6 @@ pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
             );
         }
     }
-
-    // Unset color override to prevent test interference
-    colored::control::unset_override();
 
     Ok(())
 }
