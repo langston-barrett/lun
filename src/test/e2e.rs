@@ -22,13 +22,30 @@ impl Drop for ColorGuard {
     }
 }
 
-/// Process ANSI escape sequences in output for testing
-/// - Green text is surrounded by `green[TEXT]`
-/// - Red text is surrounded by `red[TEXT]`
-/// - `\x1b[2K\r` is replaced by `\n\r`
+/// Process ANSI escape sequences in output for testing.
+///
+/// Converts ANSI escape sequences into readable text markers that can be used in test assertions.
+/// This allows tests to verify that the correct colors are being applied without having to deal
+/// with raw ANSI codes.
+///
+/// # Conversions
+/// - Green text: `\x1b[32m...\x1b[0m` → `green[...]`
+/// - Red text: `\x1b[31m...\x1b[0m` → `red[...]`
+/// - Terminal clear sequence: `\x1b[2K\r` → `\n\r`
+///
+/// # Arguments
+/// * `output` - The raw output string containing ANSI escape sequences
+///
+/// # Returns
+/// A string with ANSI sequences replaced by readable text markers
 #[cfg(test)]
 fn process_ansi_output(output: &str) -> String {
     use regex::Regex;
+    use std::sync::OnceLock;
+
+    // Compile regexes once and reuse them
+    static GREEN_RE: OnceLock<Regex> = OnceLock::new();
+    static RED_RE: OnceLock<Regex> = OnceLock::new();
 
     let mut result = output.to_string();
 
@@ -36,11 +53,11 @@ fn process_ansi_output(output: &str) -> String {
     result = result.replace("\x1b[2K\r", "\n\\r");
 
     // Replace green text: \x1b[32m...\x1b[0m -> green[...]
-    let green_re = Regex::new(r"\x1b\[32m([^\x1b]*)\x1b\[0m").unwrap();
+    let green_re = GREEN_RE.get_or_init(|| Regex::new(r"\x1b\[32m([^\x1b]*)\x1b\[0m").unwrap());
     result = green_re.replace_all(&result, "green[$1]").to_string();
 
     // Replace red text: \x1b[31m...\x1b[0m -> red[...]
-    let red_re = Regex::new(r"\x1b\[31m([^\x1b]*)\x1b\[0m").unwrap();
+    let red_re = RED_RE.get_or_init(|| Regex::new(r"\x1b\[31m([^\x1b]*)\x1b\[0m").unwrap());
     result = red_re.replace_all(&result, "red[$1]").to_string();
 
     result
