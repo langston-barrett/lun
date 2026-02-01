@@ -63,15 +63,16 @@ impl Paths {
 }
 
 pub(crate) fn go(
-    cli: cli::Cli,
+    cmd: cli::Command,
+    warns: cli::warn::WarnOpts,
     paths: &Paths,
     env: &env::Env,
     config: Option<config::Config>,
     out_config: out::Config,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
-    let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
-    match &cli.command {
+    let lints = warn::warns::Warns::from_cli_and_config(&warns, config.as_ref())?;
+    match &cmd {
         cli::Command::Cache(cache_cmd) => match &cache_cmd.command {
             cli::CacheCommand::Rm => {
                 cache::rm(&paths.cache)?;
@@ -169,7 +170,15 @@ fn main() -> Result<()> {
         None => None,
     };
     trace!(?config);
-    let ok = go(cli, &paths, &env, config, out_config, &mut io::stderr())?;
+    let ok = go(
+        cli.command,
+        cli.warn,
+        &paths,
+        &env,
+        config,
+        out_config,
+        &mut io::stderr(),
+    )?;
     if !ok {
         process::exit(1);
     }
