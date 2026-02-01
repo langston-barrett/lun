@@ -105,6 +105,16 @@ pub(crate) enum CacheEntryCommand {
     },
 }
 
+/// Controls which timing information to print
+#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
+pub(crate) enum PrintTimings {
+    /// Don't print timing information
+    None,
+    /// Print total elapsed time (default)
+    #[default]
+    Total,
+}
+
 /// Run linters and formatters
 #[derive(Debug, clap::Parser)]
 pub(crate) struct Run {
@@ -168,6 +178,9 @@ pub(crate) struct Run {
     /// Skip matching files (can be used multiple times)
     #[arg(long, action = clap::ArgAction::Append, value_name = "GLOB")]
     pub(crate) skip_files: Vec<String>,
+    /// Control which timing information to print
+    #[arg(long, default_value = "total")]
+    pub(crate) print_timings: PrintTimings,
     /// Only run on staged files (useful in pre-commit hooks)
     #[arg(long)]
     pub(crate) staged: bool,
