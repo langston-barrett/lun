@@ -29,20 +29,20 @@ impl Drop for ColorGuard {
 #[cfg(test)]
 fn process_ansi_output(output: &str) -> String {
     use regex::Regex;
-    
+
     let mut result = output.to_string();
-    
+
     // Replace terminal clear-line escape sequences with newline followed by \r
     result = result.replace("\x1b[2K\r", "\n\\r");
-    
+
     // Replace green text: \x1b[32m...\x1b[0m -> green[...]
     let green_re = Regex::new(r"\x1b\[32m([^\x1b]*)\x1b\[0m").unwrap();
     result = green_re.replace_all(&result, "green[$1]").to_string();
-    
+
     // Replace red text: \x1b[31m...\x1b[0m -> red[...]
     let red_re = Regex::new(r"\x1b\[31m([^\x1b]*)\x1b\[0m").unwrap();
     result = red_re.replace_all(&result, "red[$1]").to_string();
-    
+
     result
 }
 
@@ -198,7 +198,7 @@ fn update_expected_output(path: &Path, line_start: usize, new_output: &str) -> R
 pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
     // Acquire lock to serialize access to colored::control global state
     let _lock = COLOR_LOCK.lock().unwrap();
-    
+
     // Force colors on/off for the colored crate based on ansi_mode
     // Use RAII guard to ensure state is reset even on early return
     let _color_guard = ColorGuard;
@@ -207,7 +207,7 @@ pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
     } else {
         colored::control::set_override(false);
     }
-    
+
     let test_case = parse_test_file(test_path)?;
 
     let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
