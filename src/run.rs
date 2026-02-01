@@ -183,7 +183,7 @@ fn mk_config(
         no_capture: run.no_capture,
         no_cache: run.no_cache || run.fresh,
         tools,
-        progress_format: Format::new(out_config),
+        progress_format: Format::new(out_config, env.term_width),
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),

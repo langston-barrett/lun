@@ -7,17 +7,17 @@ use crate::out;
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Format {
     No,
-    Terminal,
+    Terminal(Option<u16>),
     Newline,
 }
 
 impl Format {
-    pub(crate) fn new(out_config: out::Config) -> Self {
+    pub(crate) fn new(out_config: out::Config, term_width: Option<u16>) -> Self {
         if out_config.verbosity < tracing::Level::INFO {
             return Self::No;
         }
         if out_config.interactive {
-            Self::Terminal
+            Self::Terminal(term_width)
         } else {
             Self::Newline
         }
@@ -27,7 +27,7 @@ impl Format {
 const TERMINAL_RATE_LIMIT: Duration = Duration::from_millis(100);
 
 pub(crate) struct Progress<'a, W: Write + ?Sized> {
-    format: Format,
+    pub(crate) format: Format,
     pub(crate) completed: usize,
     pub(crate) total: Option<usize>,
     #[allow(dead_code)]
@@ -60,7 +60,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
     }
 
     fn should_write(&mut self) -> bool {
-        if !matches!(self.format, Format::Terminal) {
+        if !matches!(self.format, Format::Terminal(_)) {
             if self.interval != 1
                 && let Some(t) = self.total
             {
@@ -104,7 +104,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
 
     pub(crate) fn fail(&mut self, msg: &[u8]) {
         let prefix = match self.format {
-            Format::Terminal => b"\n".as_slice(),
+            Format::Terminal(_) => b"\n".as_slice(),
             Format::Newline | Format::No => b"".as_slice(),
         };
         drop(self.out.write(prefix));
@@ -130,7 +130,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
 
 impl<W: Write + ?Sized> Drop for Progress<'_, W> {
     fn drop(&mut self) {
-        if !self.done && matches!(self.format, Format::Terminal) {
+        if !self.done && matches!(self.format, Format::Terminal(_)) {
             drop(self.out.write(b"\n"));
         }
     }
@@ -158,18 +158,25 @@ pub(crate) fn report_line(
     if msg.is_empty() {
         match format {
             Format::No => (),
-            Format::Terminal => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
+            Format::Terminal(_) => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
             Format::Newline => drop(writeln!(out, "[{completed}/{total}]")),
         }
     } else {
         match format {
             Format::No => (),
-            Format::Terminal => {
-                if msg.len() > 60 && trunc {
-                    let shorter = &msg[0..60];
-                    drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}..."));
+            Format::Terminal(term_width) => {
+                let progress = format!("[{completed}/{total}] ");
+                let max_len = term_width.map(|w| {
+                    usize::from(w).saturating_sub(progress.len().saturating_add("...".len()))
+                });
+                if let Some(max) = max_len
+                    && msg.len() > max
+                    && trunc
+                {
+                    let shorter = &msg[0..max];
+                    drop(write!(out, "\x1b[2K\r{progress}{shorter}..."));
                 } else {
-                    drop(write!(out, "\x1b[2K\r[{completed}/{total}] {msg}"));
+                    drop(write!(out, "\x1b[2K\r{progress}{msg}"));
                 }
             }
             Format::Newline => {
@@ -192,7 +199,7 @@ mod tests {
     #[test]
     fn report_line_terminal_empty_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Terminal, 5, Some(10), "", &mut buf, true);
+        report_line(Format::Terminal(None), 5, Some(10), "", &mut buf, true);
         expect![[r#"\u{1b}[2K\r[5/10]"#]].assert_eq(&to_str(&buf).escape_default().to_string());
     }
 
@@ -200,10 +207,16 @@ mod tests {
     fn report_line_terminal_truncates_long_msg() {
         let mut buf = Vec::new();
         let long_msg = "a".repeat(100);
-        report_line(Format::Terminal, 1, Some(5), &long_msg, &mut buf, true);
-        expect![[
-            r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."#
-        ]]
+        // term_width of 80 means max_msg_len = 80 - 20 = 60
+        report_line(
+            Format::Terminal(Some(80)),
+            1,
+            Some(5),
+            &long_msg,
+            &mut buf,
+            true,
+        );
+        expect![[r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."#]]
         .assert_eq(&to_str(&buf).escape_default().to_string());
     }
 
@@ -261,7 +274,7 @@ mod tests {
     #[test]
     fn progress_fail_terminal_adds_newline() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
         progress.fail(b"error");
         progress.done();
         expect![[r#"\nFAILED:\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -283,7 +296,7 @@ mod tests {
     fn progress_drop_terminal_adds_newline() {
         let mut buf = Vec::new();
         {
-            let _progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
+            let _progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
             // dropped without calling done()
         }
         expect![[r#"\n"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -293,7 +306,7 @@ mod tests {
     fn progress_done_prevents_drop_newline() {
         let mut buf = Vec::new();
         {
-            let progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
+            let progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
             progress.done();
         }
         expect![[""]].assert_eq(to_str(&buf));
@@ -302,7 +315,7 @@ mod tests {
     #[test]
     fn progress_rate_limit_terminal() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
         progress.write("first");
         progress.write("second"); // should be rate-limited
         progress.write("third"); // should be rate-limited
