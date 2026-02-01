@@ -125,6 +125,7 @@ struct Config {
     no_cache: bool,
     tools: Vec<tool::Tool>,
     progress_format: Format,
+    color: bool,
     keep_going: bool,
     then: Option<String>,
     r#else: Option<String>,
@@ -144,6 +145,7 @@ impl Config {
             &self.cwd,
             &self.cache,
             self.progress_format,
+            self.color,
             out,
             only,
             skip,
@@ -184,6 +186,7 @@ fn mk_config(
         no_cache: run.no_cache || run.fresh,
         tools,
         progress_format: Format::new(out_config, env.term_width),
+        color: out_config.color,
         keep_going: run.keep_going,
         then: run.then.clone(),
         r#else: run.r#else.clone(),
@@ -207,7 +210,13 @@ fn run(
         cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
     let plan_total = files.len() * config.tools.len();
-    let mut plan_progress = Progress::new(config.progress_format, Some(plan_total), Some(10), out);
+    let mut plan_progress = Progress::new(
+        config.progress_format,
+        Some(plan_total),
+        Some(10),
+        config.color,
+        out,
+    );
     let batches = plan::plan(
         &mut cache,
         &config.tools,
@@ -262,6 +271,7 @@ fn do_exec(
             config.cores,
             config.no_capture,
             config.progress_format,
+            config.color,
             config.keep_going,
             config.mtime,
             start_time,
@@ -326,7 +336,7 @@ pub(crate) fn go(
             let debug_result = run(&debug_config, &files, lints, None, &mut io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
-                    (Ok(r1), Ok(r2)) => r1 == r2,
+                    (Ok(r1), Ok(r2)) => r1 == r2 || run_cli.fix,
                     _ => true,
                 },
                 "Results differ between normal and debug cache"

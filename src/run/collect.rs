@@ -112,13 +112,14 @@ pub(crate) fn go(
     root: &Path,
     cache_dir: &Path,
     progress_format: Format,
+    color: bool,
     out: &mut (impl Write + ?Sized),
     only: &[String],
     skip: &[String],
     staged: bool,
     vcs: bool,
 ) -> Result<Vec<file::File>> {
-    let mut progress = Progress::new(progress_format, None, None, out);
+    let mut progress = Progress::new(progress_format, None, None, color, out);
     progress.write("Collecting files");
 
     let mut only = only.to_vec();

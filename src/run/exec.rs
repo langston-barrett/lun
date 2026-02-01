@@ -24,15 +24,16 @@ pub(crate) fn exec(
     cores: NonZeroUsize,
     no_capture: bool,
     format: Format,
+    color: bool,
     keep_going: bool,
     mtime_enabled: bool,
     start_time: Option<Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let n_batches = batches.len();
-    let progress = Progress::new(format, Some(n_batches), None, out);
+    let progress = Progress::new(format, Some(n_batches), None, color, out);
     if n_batches == 0 {
-        progress.finalize("0 files linted");
+        progress.finalize("0 files linted", false);
         return Ok(true);
     }
     debug!(batches = n_batches, "Executing batches in parallel");

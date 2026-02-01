@@ -192,36 +192,48 @@ fn final_report<W: Write + ?Sized>(
     start_time: Option<Instant>,
     progress: Progress<'_, W>,
 ) {
-    let duration_str = start_time.map(|t| format!(" in {}", format_duration(t.elapsed())));
+    let duration_str = start_time.map(|t| format_duration(t.elapsed()));
+    let has_errors = errors > 0;
 
     if total_files == 1 {
         if errors == 0 {
-            progress.finalize(&format!(
-                "1 file linted{}",
-                duration_str.as_deref().unwrap_or("")
-            ));
+            progress.finalize(
+                &format!("1 file linted{}", duration_str.as_deref().unwrap_or("")),
+                has_errors,
+            );
         } else if errors == 1 {
-            progress.finalize("1 error");
+            progress.finalize(
+                &format!("1 error{}", duration_str.as_deref().unwrap_or("")),
+                has_errors,
+            );
         } else {
-            progress.finalize(&format!("{errors} errors"));
+            progress.finalize(&format!("{errors} errors"), has_errors);
         }
     } else if errors == 0 {
-        progress.finalize(&format!(
-            "{total_files} files linted{}",
-            duration_str.as_deref().unwrap_or("")
-        ));
+        progress.finalize(
+            &format!(
+                "{total_files} files linted{}",
+                duration_str.as_deref().unwrap_or("")
+            ),
+            has_errors,
+        );
     } else if errors == 1 {
-        progress.finalize("1 error");
+        progress.finalize(
+            &format!("1 error{}", duration_str.as_deref().unwrap_or("")),
+            has_errors,
+        );
     } else {
-        progress.finalize(&format!("{errors} errors"));
+        progress.finalize(&format!("{errors} errors"), has_errors);
     }
 }
 
 fn format_duration(duration: std::time::Duration) -> String {
     let secs = duration.as_secs_f64();
-    if secs < 10.0 {
-        format!("{secs:.1}s")
+    if secs < 0.05 {
+        String::new()
+    } else if secs < 10.0 {
+        format!(" in {secs:.1}s")
     } else {
-        format!("{secs:.0}s")
+        format!(" in {secs:.0}s")
     }
 }
