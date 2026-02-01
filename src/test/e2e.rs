@@ -13,7 +13,7 @@ use crate::out;
 // Mutex to serialize access to colored::control global state
 static COLOR_LOCK: Mutex<()> = Mutex::new(());
 
-/// RAII guard to ensure colored::control state is reset
+/// RAII guard to ensure `colored::control` state is reset
 struct ColorGuard;
 
 impl Drop for ColorGuard {
