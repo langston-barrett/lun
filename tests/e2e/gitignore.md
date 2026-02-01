@@ -64,6 +64,6 @@ run
 [1/3] Planning
 [2/3] Planning
 [3/3] Planning
-[1/1] echo <TEMP>/main.py
+[1/1] echo (1 / 1)
 [1/1] 1 file linted
 ```

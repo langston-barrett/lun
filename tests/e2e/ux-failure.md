@@ -22,7 +22,7 @@ run
 ```
 [0/?] Collecting files
 [1/1] Planning
-[1/1] false <TEMP>/lun.toml
+[1/1] false (1 / 1)
 Command failed:
 false <TEMP>/lun.toml
 ```

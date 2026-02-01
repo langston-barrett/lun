@@ -1,4 +1,3 @@
-use std::cmp;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
@@ -135,8 +134,12 @@ pub(crate) fn report_line(
         match format {
             Format::No => (),
             Format::Terminal => {
-                let shorter = &msg[0..cmp::min(60, msg.len())];
-                drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}"));
+                if msg.len() > 60 {
+                    let shorter = &msg[0..60];
+                    drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}..."));
+                } else {
+                    drop(write!(out, "\x1b[2K\r[{completed}/{total}] {msg}"));
+                }
             }
             Format::Newline => {
                 drop(writeln!(out, "[{completed}/{total}] {msg}"));
@@ -168,7 +171,7 @@ mod tests {
         let long_msg = "a".repeat(100);
         report_line(Format::Terminal, 1, Some(5), &long_msg, &mut buf);
         expect![[
-            r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"#
+            r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."#
         ]]
         .assert_eq(&to_str(&buf).escape_default().to_string());
     }

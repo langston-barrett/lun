@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZero, process};
+use std::{num::NonZero, process};
 
 use tracing::debug;
 
@@ -6,32 +6,13 @@ use crate::{config::Args, file, run::cmd};
 
 #[derive(Debug)]
 pub(super) struct Batch {
-    #[allow(dead_code)] // TODO
-    idx: usize,
-    #[allow(dead_code)] // TODO
-    tot: usize,
+    pub(crate) tot: usize,
     pub(crate) cmd: cmd::Command,
-}
-
-impl fmt::Display for Batch {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} ({}/{})",
-            self.cmd.tool.display_name(),
-            self.idx,
-            self.tot
-        )
-    }
 }
 
 impl Batch {
     fn one_of_one(cmd: cmd::Command) -> Self {
-        Self {
-            idx: 1,
-            tot: 1,
-            cmd,
-        }
+        Self { tot: 1, cmd }
     }
 
     pub(crate) fn to_command(&self) -> process::Command {
@@ -78,9 +59,7 @@ fn one_per_file(cmd: cmd::Command) -> Vec<Batch> {
     let tot = cmd.files.len();
     cmd.files
         .into_iter()
-        .enumerate()
-        .map(|(idx, file)| Batch {
-            idx,
+        .map(|file| Batch {
             tot,
             cmd: cmd::Command {
                 tool: cmd.tool.clone(),
@@ -139,8 +118,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<Batch> {
 
     let tot = jobs.len();
     jobs.into_iter()
-        .enumerate()
-        .filter_map(|(idx, (mut files, sz))| {
+        .filter_map(|(mut files, sz)| {
             if files.is_empty() {
                 None
             } else {
@@ -151,7 +129,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<Batch> {
                 };
                 let c = cmd.to_command();
                 debug!("Batched {} (size: {sz})", display_cmd(&c));
-                Some(Batch { idx, tot, cmd })
+                Some(Batch { tot, cmd })
             }
         })
         .collect()
