@@ -7,6 +7,7 @@ mod cache;
 mod cli;
 mod config;
 mod entry;
+mod env;
 mod file;
 mod git;
 mod init;
@@ -37,7 +38,6 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 pub(crate) struct Paths {
     pub(crate) config: Option<PathBuf>,
     pub(crate) cache: PathBuf,
-    pub(crate) cwd: PathBuf,
 }
 
 impl Paths {
@@ -58,18 +58,16 @@ impl Paths {
                 .map_or_else(|| PathBuf::from(".lun"), |p| p.join(".lun"))
         });
 
-        let cwd = PathBuf::from(".");
-
-        Self { config, cache, cwd }
+        Self { config, cache }
     }
 }
 
 pub(crate) fn go(
     cli: cli::Cli,
     paths: &Paths,
+    env: &env::Env,
     config: Option<config::Config>,
     out_config: out::Config,
-    start_time: Option<std::time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
@@ -115,13 +113,15 @@ pub(crate) fn go(
             let start_time = match &cli.command {
                 cli::Command::Run(run) => match run.print_timings {
                     cli::PrintTimings::None => None,
-                    cli::PrintTimings::Total => start_time,
+                    cli::PrintTimings::Total => env.start_time,
                 },
-                _ => start_time,
+                _ => env.start_time,
             };
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(paths, run, &config, &lints, out_config, start_time, out)
+            run::go(
+                env, paths, run, &config, &lints, out_config, start_time, out,
+            )
         }
         cli::Command::Init(init) => {
             let config_path = paths
@@ -161,13 +161,13 @@ pub(crate) fn go(
 }
 
 fn main() -> Result<()> {
-    let start_time = std::time::Instant::now();
-
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 
+    // this should come first as it has start_time
+    let env = env::Env::new();
     let cli = cli::Cli::parse();
-    let out_config = out::Config::new(cli.log);
+    let out_config = out::Config::new(&env, cli.log);
     log::init_tracing(out_config);
     debug!("version = {}", env!("CARGO_PKG_VERSION"));
     trace!(?cli);
@@ -178,14 +178,7 @@ fn main() -> Result<()> {
         None => None,
     };
     trace!(?config);
-    let ok = go(
-        cli,
-        &paths,
-        config,
-        out_config,
-        Some(start_time),
-        &mut io::stderr(),
-    )?;
+    let ok = go(cli, &paths, &env, config, out_config, &mut io::stderr())?;
     if !ok {
         process::exit(1);
     }

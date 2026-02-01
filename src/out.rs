@@ -1,6 +1,7 @@
-use std::io::{self, IsTerminal as _};
-
-use crate::cli::{self, log::LogOptions};
+use crate::{
+    cli::{self, log::LogOptions},
+    env,
+};
 
 fn verbosity_to_log_level(verbosity: u8) -> tracing::Level {
     match verbosity {
@@ -32,21 +33,16 @@ impl Default for Config {
 }
 
 impl Config {
-    pub(crate) fn new(log_opts: LogOptions) -> Self {
-        let interactive = if cfg!(test) {
-            false
-        } else {
-            io::stderr().is_terminal()
-        };
+    pub(crate) fn new(env: &env::Env, log_opts: LogOptions) -> Self {
         let color = match log_opts.color {
             cli::log::Color::Always => true,
             cli::log::Color::Never => false,
-            cli::log::Color::Auto => interactive,
+            cli::log::Color::Auto => env.is_tty,
         };
         let effective_verbosity = log_opts.verbose.saturating_sub(log_opts.quiet);
         Self {
             color,
-            interactive,
+            interactive: env.is_tty,
             timestamps: log_opts.log_timestamp,
             verbosity: verbosity_to_log_level(effective_verbosity + 1),
         }

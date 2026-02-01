@@ -193,10 +193,14 @@ fn run_test(test_path: &Path) -> Result<()> {
 
     let config_path = temp_path.join("lun.toml");
     let temp_path_str = temp_path.to_string_lossy();
+    let env = crate::env::Env {
+        cwd: temp_path.to_path_buf(),
+        is_tty: false,
+        start_time: None,
+    };
     let paths = crate::Paths {
         config: Some(config_path.clone()),
         cache: temp_path.join(".lun"),
-        cwd: temp_path.to_path_buf(),
     };
 
     // Run each command
@@ -250,8 +254,8 @@ fn run_test(test_path: &Path) -> Result<()> {
         let mut output_buffer: Vec<u8> = Vec::new();
 
         // Run with the temp directory as working directory
-        let out_config = out::Config::new(cli.log);
-        let result = crate::go(cli, &paths, config, out_config, None, &mut output_buffer);
+        let out_config = out::Config::new(&env, cli.log);
+        let result = crate::go(cli, &paths, &env, config, out_config, &mut output_buffer);
 
         // Get captured output and normalize escape sequences
         let captured = {
