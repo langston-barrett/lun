@@ -61,6 +61,15 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
 
     fn should_write(&mut self) -> bool {
         if !matches!(self.format, Format::Terminal) {
+            if self.interval != 1
+                && let Some(t) = self.total
+            {
+                let interval = t / self.interval;
+                let interval = if interval == 0 { 1 } else { interval };
+                return self.completed == 0
+                    || self.completed == t
+                    || self.completed.is_multiple_of(interval);
+            }
             return true;
         }
         let dominated = self
