@@ -131,7 +131,12 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
     if let cli::Command::Run(run) = cli.command {
         scenario.run = Some(run);
     }
-    scenario.out_config = out::Config::new(cli.log);
+    let env = crate::env::Env {
+        cwd: PathBuf::from("."),
+        is_tty: false,
+        start_time: None,
+    };
+    scenario.out_config = out::Config::new(&env, cli.log);
 }
 
 fn process_files_section_line(scenario: &mut TestScenario, line: &str) {

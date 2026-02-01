@@ -27,7 +27,7 @@ mod test;
 use crate::{
     Paths,
     cache::{self, CacheWriter},
-    cli, config,
+    cli, config, env,
     file::{self, File},
     git, out,
     progress::{Format, Progress},
@@ -154,6 +154,7 @@ impl Config {
 }
 
 fn mk_config(
+    env: &env::Env,
     paths: &Paths,
     out_config: out::Config,
     run: &cli::Run,
@@ -173,7 +174,7 @@ fn mk_config(
         refs,
         cache: paths.cache.clone(),
         config_path: paths.config.clone().unwrap_or_default(),
-        cwd: paths.cwd.clone(),
+        cwd: env.cwd.clone(),
         cores: num_cores(run.jobs.or(config.cores)),
         dry_run: run.dry_run,
         mtime,
@@ -288,7 +289,9 @@ fn then_else(config: &Config, success: bool) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn go(
+    env: &env::Env,
     paths: &Paths,
     run_cli: &cli::Run,
     config: &config::Config,
@@ -300,10 +303,10 @@ pub(crate) fn go(
     lint(run_cli, config, lints)?;
     fs::create_dir_all(&paths.cache)?; // just to create the dir
     if run_cli.watch {
-        watch(paths, out_config, run_cli, config, lints, out)?;
+        watch(env, paths, out_config, run_cli, config, lints, out)?;
         Ok(true)
     } else {
-        let config = mk_config(paths, out_config, run_cli, config)?;
+        let config = mk_config(env, paths, out_config, run_cli, config)?;
         let files = config.collect_files(
             run_cli.staged,
             run_cli.vcs,
@@ -352,6 +355,7 @@ fn clear_term() {
 // using the events from `notify`. See e.g.,
 // https://github.com/astral-sh/ruff/blob/main/crates/ty_project/src/watch/watcher.rs
 fn watch(
+    env: &env::Env,
     paths: &Paths,
     out_config: out::Config,
     run_cli: &cli::Run,
@@ -359,7 +363,7 @@ fn watch(
     lints: &Warns,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
-    let config = mk_config(paths, out_config, run_cli, config)?;
+    let config = mk_config(env, paths, out_config, run_cli, config)?;
     let files = config.collect_files(
         run_cli.staged,
         run_cli.vcs,
@@ -387,7 +391,7 @@ fn watch(
     .context("Failed to create file watcher")?;
 
     watcher
-        .watch(&paths.cwd, RecursiveMode::Recursive)
+        .watch(&env.cwd, RecursiveMode::Recursive)
         .context("Failed to start watching directory")?;
 
     debug!("Watching for file changes...");
