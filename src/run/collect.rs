@@ -118,7 +118,7 @@ pub(crate) fn go(
     staged: bool,
     vcs: bool,
 ) -> Result<Vec<file::File>> {
-    let mut progress = Progress::new(progress_format, None, out);
+    let mut progress = Progress::new(progress_format, None, None, out);
     progress.write("Collecting files");
 
     let mut only = only.to_vec();

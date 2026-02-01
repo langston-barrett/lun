@@ -1,3 +1,4 @@
+use std::cmp;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
@@ -29,17 +30,25 @@ pub(crate) struct Progress<'a, W: Write + ?Sized> {
     format: Format,
     pub(crate) completed: usize,
     pub(crate) total: Option<usize>,
+    #[allow(dead_code)]
+    interval: usize,
     out: &'a mut W,
     done: bool,
     last_write: Option<Instant>,
 }
 
 impl<'a, W: Write + ?Sized> Progress<'a, W> {
-    pub(crate) fn new(format: Format, total: Option<usize>, out: &'a mut W) -> Self {
+    pub(crate) fn new(
+        format: Format,
+        total: Option<usize>,
+        interval: Option<usize>,
+        out: &'a mut W,
+    ) -> Self {
         Self {
             format,
             completed: 0,
             total,
+            interval: cmp::max(interval.unwrap_or(1), 1),
             out,
             done: false,
             last_write: None,
@@ -230,7 +239,7 @@ mod tests {
     #[test]
     fn progress_write_at_completed() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
         progress.completed = 5;
         progress.write("msg");
         progress.done();
@@ -243,7 +252,7 @@ mod tests {
     #[test]
     fn progress_fail_terminal_adds_newline() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+        let mut progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
         progress.fail(b"error");
         progress.done();
         expect![[r#"\nFAILED:\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -252,7 +261,7 @@ mod tests {
     #[test]
     fn progress_fail_newline_no_prefix() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
         progress.fail(b"error");
         progress.done();
         expect![[r#"
@@ -265,7 +274,7 @@ mod tests {
     fn progress_drop_terminal_adds_newline() {
         let mut buf = Vec::new();
         {
-            let _progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+            let _progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
             // dropped without calling done()
         }
         expect![[r#"\n"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -275,7 +284,7 @@ mod tests {
     fn progress_done_prevents_drop_newline() {
         let mut buf = Vec::new();
         {
-            let progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+            let progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
             progress.done();
         }
         expect![[""]].assert_eq(to_str(&buf));
@@ -284,7 +293,7 @@ mod tests {
     #[test]
     fn progress_rate_limit_terminal() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal, Some(10), &mut buf);
+        let mut progress = Progress::new(Format::Terminal, Some(10), None, &mut buf);
         progress.write("first");
         progress.write("second"); // should be rate-limited
         progress.write("third"); // should be rate-limited
@@ -296,7 +305,7 @@ mod tests {
     #[test]
     fn progress_no_rate_limit_newline() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
         progress.write("first");
         progress.write("second");
         progress.write("third");

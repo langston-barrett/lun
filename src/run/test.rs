@@ -371,7 +371,7 @@ fn test(path: &'static str) {
                 .collect::<Result<Vec<_>>>()
                 .unwrap();
         let mut sink = std::io::sink();
-        let mut progress = Progress::new(Format::No, None, &mut sink);
+        let mut progress = Progress::new(Format::No, None, None, &mut sink);
         let batches = plan::plan(
             &mut cache,
             &tool,
