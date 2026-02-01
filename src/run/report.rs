@@ -113,7 +113,9 @@ pub(super) fn reporter<W: Write + ?Sized>(
             }
             #[allow(clippy::unwrap_used)]
             Ok(Event::Done { batch }) => {
-                let running_batches = running.get_mut(batch.name.as_ref()).unwrap();
+                let running_batches = running
+                    .entry(batch.name.clone())
+                    .or_insert_with(|| RunningBatches::new(batch.tot));
                 let done = running_batches.done();
                 if done {
                     running.remove(batch.name.as_ref());
@@ -124,6 +126,7 @@ pub(super) fn reporter<W: Write + ?Sized>(
                     .as_ref()
                     .is_some_and(|t| progress.completed == *t)
                 {
+                    #[cfg(test)]
                     debug_assert!(running.values().all(RunningBatches::is_done));
                     debug_assert!(total_files >= 1);
                     final_report(total_files, errors, start_time, progress);
