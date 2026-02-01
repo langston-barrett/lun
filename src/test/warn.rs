@@ -12,8 +12,8 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
         .unwrap();
     let env = crate::env::Env {
         cwd: PathBuf::from("."),
-        is_tty: false,
         start_time: None,
+        term_width: None,
     };
     let paths = crate::Paths {
         config: Some(PathBuf::from("test.toml")),

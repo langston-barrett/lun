@@ -195,8 +195,8 @@ fn run_test(test_path: &Path) -> Result<()> {
     let temp_path_str = temp_path.to_string_lossy();
     let env = crate::env::Env {
         cwd: temp_path.to_path_buf(),
-        is_tty: false,
         start_time: None,
+        term_width: None,
     };
     let paths = crate::Paths {
         config: Some(config_path.clone()),

@@ -37,12 +37,12 @@ impl Config {
         let color = match log_opts.color {
             cli::log::Color::Always => true,
             cli::log::Color::Never => false,
-            cli::log::Color::Auto => env.is_tty,
+            cli::log::Color::Auto => env.is_tty(),
         };
         let effective_verbosity = log_opts.verbose.saturating_sub(log_opts.quiet);
         Self {
             color,
-            interactive: env.is_tty,
+            interactive: env.is_tty(),
             timestamps: log_opts.log_timestamp,
             verbosity: verbosity_to_log_level(effective_verbosity + 1),
         }
