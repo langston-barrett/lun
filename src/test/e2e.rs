@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use anyhow::{Context, Result};
 use clap::Parser as _;
@@ -9,51 +8,6 @@ use expect_test::expect;
 use std::env;
 
 use crate::out;
-
-// Mutex to serialize test execution that modifies environment variables
-static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-/// Guard to manage `CLICOLOR_FORCE` environment variable for tests
-struct ColorEnvGuard {
-    was_set: bool,
-    old_value: Option<String>,
-    _lock: std::sync::MutexGuard<'static, ()>,
-}
-
-impl ColorEnvGuard {
-    fn new(enable: bool) -> Self {
-        let lock = ENV_LOCK.lock().unwrap();
-        let old_value = env::var("CLICOLOR_FORCE").ok();
-        let was_set = old_value.is_some();
-        
-        if enable {
-            // SAFETY: We're in a test environment and hold the lock
-            unsafe {
-                env::set_var("CLICOLOR_FORCE", "1");
-            }
-        } else if was_set {
-            // Unset it if it was previously set
-            unsafe {
-                env::remove_var("CLICOLOR_FORCE");
-            }
-        }
-        
-        Self { was_set, old_value, _lock: lock }
-    }
-}
-
-impl Drop for ColorEnvGuard {
-    fn drop(&mut self) {
-        // SAFETY: We hold the lock and are restoring the original state
-        unsafe {
-            if let Some(ref value) = self.old_value {
-                env::set_var("CLICOLOR_FORCE", value);
-            } else if self.was_set || env::var("CLICOLOR_FORCE").is_ok() {
-                env::remove_var("CLICOLOR_FORCE");
-            }
-        }
-    }
-}
 
 /// Process ANSI escape sequences in output for testing.
 ///
@@ -246,9 +200,6 @@ fn update_expected_output(path: &Path, line_start: usize, new_output: &str) -> R
 
 /// Run a single e2e test
 pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
-    // Use environment variable to control colored crate instead of colored::control API
-    let _color_guard = ColorEnvGuard::new(ansi_mode);
-    
     let test_case = parse_test_file(test_path)?;
 
     let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;

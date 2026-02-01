@@ -2,8 +2,6 @@ use std::cmp;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
-use colored::Colorize;
-
 use crate::out;
 
 #[derive(Clone, Copy, Debug)]
@@ -125,9 +123,9 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
         };
         drop(self.out.write(prefix));
         let failed_text = if self.color {
-            format!("{}:\n", "FAILED".red())
+            "\x1b[31mFAILED\x1b[0m:\n"
         } else {
-            "FAILED:\n".to_string()
+            "FAILED:\n"
         };
         drop(self.out.write_all(failed_text.as_bytes()));
         drop(self.out.write_all(msg));
@@ -184,9 +182,9 @@ pub(crate) fn report_line(
     let progress = format!("[{completed}/{total}]");
     let progress = if color {
         if errors {
-            progress.red().to_string()
+            format!("\x1b[31m{progress}\x1b[0m")
         } else {
-            progress.green().to_string()
+            format!("\x1b[32m{progress}\x1b[0m")
         }
     } else {
         progress
@@ -426,9 +424,6 @@ mod tests {
 
     #[test]
     fn color_fail() {
-        unsafe {
-            std::env::set_var("CLICOLOR_FORCE", "1");
-        }
         let mut buf = Vec::new();
         let mut progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.fail(b"error");
@@ -437,16 +432,10 @@ mod tests {
             [31mFAILED[0m:
             error"#]]
         .assert_eq(to_str(&buf));
-        unsafe {
-            std::env::remove_var("CLICOLOR_FORCE");
-        }
     }
 
     #[test]
     fn color_finalize_no_errors() {
-        unsafe {
-            std::env::set_var("CLICOLOR_FORCE", "1");
-        }
         let mut buf = Vec::new();
         let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.finalize("done", false);
@@ -454,16 +443,10 @@ mod tests {
             [32m[0/10][0m done
         "#]]
         .assert_eq(to_str(&buf));
-        unsafe {
-            std::env::remove_var("CLICOLOR_FORCE");
-        }
     }
 
     #[test]
     fn color_finalize_with_errors() {
-        unsafe {
-            std::env::set_var("CLICOLOR_FORCE", "1");
-        }
         let mut buf = Vec::new();
         let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.finalize("failed", true);
@@ -471,8 +454,5 @@ mod tests {
             [31m[0/10][0m failed
         "#]]
         .assert_eq(to_str(&buf));
-        unsafe {
-            std::env::remove_var("CLICOLOR_FORCE");
-        }
     }
 }
