@@ -5,6 +5,7 @@ use std::os::unix::process::ExitStatusExt as _;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::time::Instant;
 use std::{cmp, process, thread};
 
 use anyhow::{Context, Result};
@@ -25,6 +26,7 @@ pub(crate) fn exec(
     format: Format,
     keep_going: bool,
     mtime_enabled: bool,
+    start_time: Option<Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let n_batches = batches.len();
@@ -53,7 +55,7 @@ pub(crate) fn exec(
 
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
         s.spawn(|| {
-            report::reporter(keep_going, total_files, rx, progress);
+            report::reporter(keep_going, total_files, start_time, rx, progress);
         });
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {

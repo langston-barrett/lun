@@ -194,6 +194,7 @@ fn run(
     config: &Config,
     files: &[File],
     lints: &Warns,
+    start_time: Option<time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     trace!(?config);
@@ -223,7 +224,7 @@ fn run(
         cache.flush()?;
     }
     let no_batches = batches.is_empty();
-    let result = do_exec(config, &mut cache, batches, out)?;
+    let result = do_exec(config, &mut cache, batches, start_time, out)?;
     if !no_batches && !config.no_cache {
         let cache_full = cache.flush()?;
         warn::check_cache_usage(lints, cache.entries_added, cache.max_entries)?;
@@ -237,6 +238,7 @@ fn do_exec(
     config: &Config,
     cache: &mut (impl CacheWriter + ?Sized),
     batches: Vec<batch::Batch>,
+    start_time: Option<time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     if config.ninja {
@@ -261,6 +263,7 @@ fn do_exec(
             config.progress_format,
             config.keep_going,
             config.mtime,
+            start_time,
             out,
         )
     }
@@ -291,6 +294,7 @@ pub(crate) fn go(
     config: &config::Config,
     lints: &Warns,
     out_config: out::Config,
+    start_time: Option<time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     lint(run_cli, config, lints)?;
@@ -307,7 +311,7 @@ pub(crate) fn go(
             &run_cli.skip_files,
             out,
         )?;
-        let result = run(&config, &files, lints, out);
+        let result = run(&config, &files, lints, start_time, out);
         #[cfg(debug_assertions)]
         {
             let debug_cache = paths.cache.join("debug");
@@ -315,7 +319,7 @@ pub(crate) fn go(
             drop(fs::create_dir_all(&debug_cache));
             let mut debug_config = config.clone();
             debug_config.cache = debug_cache;
-            let debug_result = run(&debug_config, &files, lints, &mut io::sink());
+            let debug_result = run(&debug_config, &files, lints, None, &mut io::sink());
             debug_assert!(
                 match (result.as_ref(), debug_result.as_ref()) {
                     (Ok(r1), Ok(r2)) => r1 == r2,
@@ -362,7 +366,7 @@ fn watch(
         &run_cli.skip_files,
         out,
     )?;
-    run(&config, &files, lints, out)?;
+    run(&config, &files, lints, Some(time::Instant::now()), out)?;
 
     let initial_config_hash = paths
         .config
@@ -405,7 +409,7 @@ fn watch(
                 &run_cli.skip_files,
                 out,
             )?;
-            run(&config, &files, lints, out)?;
+            run(&config, &files, lints, Some(time::Instant::now()), out)?;
         }
         last_run = time::Instant::now();
     }

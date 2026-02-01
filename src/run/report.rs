@@ -9,6 +9,7 @@ use std::{
     fmt::Write as _,
     io::Write,
     sync::{Arc, mpsc},
+    time::Instant,
 };
 
 use tracing::error;
@@ -82,6 +83,7 @@ impl RunningBatches {
 pub(super) fn reporter<W: Write + ?Sized>(
     keep_going: bool,
     total_files: usize,
+    start_time: Option<Instant>,
     rx: mpsc::Receiver<Event>,
     mut progress: Progress<'_, W>,
 ) {
@@ -105,7 +107,7 @@ pub(super) fn reporter<W: Write + ?Sized>(
                 progress.fail(&output);
                 errors += 1;
                 if !keep_going {
-                    final_report(total_files, errors, progress);
+                    final_report(total_files, errors, start_time, progress);
                     return;
                 }
             }
@@ -124,7 +126,7 @@ pub(super) fn reporter<W: Write + ?Sized>(
                 {
                     debug_assert!(running.values().all(RunningBatches::is_done));
                     debug_assert!(total_files >= 1);
-                    final_report(total_files, errors, progress);
+                    final_report(total_files, errors, start_time, progress);
                     break;
                 }
                 if running
@@ -171,20 +173,42 @@ fn display_batches(s: &mut String, running: &BTreeMap<Arc<String>, RunningBatche
     }
 }
 
-fn final_report<W: Write + ?Sized>(total_files: usize, errors: usize, progress: Progress<'_, W>) {
+fn final_report<W: Write + ?Sized>(
+    total_files: usize,
+    errors: usize,
+    start_time: Option<Instant>,
+    progress: Progress<'_, W>,
+) {
+    let duration_str = start_time.map(|t| format!(" in {}", format_duration(t.elapsed())));
+
     if total_files == 1 {
         if errors == 0 {
-            progress.finalize("1 file linted");
+            progress.finalize(&format!(
+                "1 file linted{}",
+                duration_str.as_deref().unwrap_or("")
+            ));
         } else if errors == 1 {
             progress.finalize("1 error");
         } else {
             progress.finalize(&format!("{errors} errors"));
         }
     } else if errors == 0 {
-        progress.finalize(&format!("{total_files} files linted"));
+        progress.finalize(&format!(
+            "{total_files} files linted{}",
+            duration_str.as_deref().unwrap_or("")
+        ));
     } else if errors == 1 {
         progress.finalize("1 error");
     } else {
         progress.finalize(&format!("{errors} errors"));
+    }
+}
+
+fn format_duration(duration: std::time::Duration) -> String {
+    let secs = duration.as_secs_f64();
+    if secs < 10.0 {
+        format!("{secs:.1}s")
+    } else {
+        format!("{secs:.0}s")
     }
 }

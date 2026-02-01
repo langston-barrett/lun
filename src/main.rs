@@ -69,6 +69,7 @@ pub(crate) fn go(
     paths: &Paths,
     config: Option<config::Config>,
     out_config: out::Config,
+    start_time: Option<std::time::Instant>,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let lints = warn::warns::Warns::from_cli_and_config(&cli.warn, config.as_ref())?;
@@ -113,7 +114,7 @@ pub(crate) fn go(
         cli::Command::Run(run) => {
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(paths, run, &config, &lints, out_config, out)
+            run::go(paths, run, &config, &lints, out_config, start_time, out)
         }
         cli::Command::Init(init) => {
             let config_path = paths
@@ -153,6 +154,8 @@ pub(crate) fn go(
 }
 
 fn main() -> Result<()> {
+    let start_time = std::time::Instant::now();
+
     #[cfg(feature = "dhat")]
     let _profiler = dhat::Profiler::new_heap();
 
@@ -168,7 +171,14 @@ fn main() -> Result<()> {
         None => None,
     };
     trace!(?config);
-    let ok = go(cli, &paths, config, out_config, &mut io::stderr())?;
+    let ok = go(
+        cli,
+        &paths,
+        config,
+        out_config,
+        Some(start_time),
+        &mut io::stderr(),
+    )?;
     if !ok {
         process::exit(1);
     }
