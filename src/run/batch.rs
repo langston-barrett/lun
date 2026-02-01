@@ -1,4 +1,4 @@
-use std::{num::NonZero, process};
+use std::{fmt, num::NonZero, process};
 
 use tracing::debug;
 
@@ -11,6 +11,18 @@ pub(super) struct Batch {
     #[allow(dead_code)] // TODO
     tot: usize,
     pub(crate) cmd: cmd::Command,
+}
+
+impl fmt::Display for Batch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} ({}/{})",
+            self.cmd.tool.display_name(),
+            self.idx,
+            self.tot
+        )
+    }
 }
 
 impl Batch {
