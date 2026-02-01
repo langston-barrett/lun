@@ -13,10 +13,10 @@ pub(crate) struct Env {
 
 impl Env {
     pub(crate) fn new() -> Self {
-        let term_width = if cfg!(test) || !io::stdout().is_terminal() {
-            None
-        } else {
+        let term_width = if io::stdout().is_terminal() {
             terminal_size::terminal_size().map(|s| s.0.0)
+        } else {
+            None
         };
         Self {
             cwd: PathBuf::from("."),
