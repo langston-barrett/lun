@@ -30,7 +30,7 @@ pub(crate) fn exec(
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     let n_batches = batches.len();
-    let progress = Progress::new(format, Some(n_batches), out);
+    let progress = Progress::new(format, Some(n_batches), None, out);
     if n_batches == 0 {
         progress.finalize("0 files linted");
         return Ok(true);

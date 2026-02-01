@@ -206,7 +206,7 @@ fn run(
         cache::HashCache::from_file(&cache_file, config.cache_size)?
     };
     let plan_total = files.len() * config.tools.len();
-    let mut plan_progress = Progress::new(config.progress_format, Some(plan_total), out);
+    let mut plan_progress = Progress::new(config.progress_format, Some(plan_total), Some(10), out);
     let batches = plan::plan(
         &mut cache,
         &config.tools,
