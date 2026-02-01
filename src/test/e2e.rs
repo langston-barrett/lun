@@ -251,7 +251,7 @@ fn run_test(test_path: &Path) -> Result<()> {
 
         // Run with the temp directory as working directory
         let out_config = out::Config::new(cli.log);
-        let result = crate::go(cli, &paths, config, out_config, &mut output_buffer);
+        let result = crate::go(cli, &paths, config, out_config, None, &mut output_buffer);
 
         // Get captured output and normalize escape sequences
         let captured = {

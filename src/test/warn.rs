@@ -17,7 +17,7 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
     };
     let config = toml::from_str(config).unwrap();
     let out_config = out::Config::new(cli.log);
-    crate::go(cli, &paths, config, out_config, &mut io::sink()).map(|b| assert!(b))
+    crate::go(cli, &paths, config, out_config, None, &mut io::sink()).map(|b| assert!(b))
 }
 
 #[test]

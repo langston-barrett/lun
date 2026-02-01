@@ -16,7 +16,8 @@
       "Bash(git pull:*)",
       "Bash(grep:*)",
       "Bash(UPDATE_EXPECT=1 cargo test:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(./target/release/lun run:*)"
     ]
   }
 }
