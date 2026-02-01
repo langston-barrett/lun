@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::Write;
 use std::num::NonZeroUsize;
 use std::os::unix::process::ExitStatusExt as _;
@@ -26,10 +27,12 @@ pub(crate) fn exec(
     mtime_enabled: bool,
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
-    if batches.is_empty() {
+    let n_batches = batches.len();
+    let progress = Progress::new(format, Some(n_batches), out);
+    if n_batches == 0 {
+        progress.finalize("0 files linted");
         return Ok(true);
     }
-    let n_batches = batches.len();
     debug!(batches = n_batches, "Executing batches in parallel");
     let num_threads = cmp::min(cores.get(), n_batches);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -41,9 +44,16 @@ pub(crate) fn exec(
 
     let failed = AtomicBool::new(false);
 
+    let total_files = batches
+        .iter()
+        .flat_map(|batch| batch.cmd.files.iter().map(|f| &f.path))
+        .collect::<HashSet<_>>()
+        .len();
+    debug!("{total_files} unique files to lint");
+
     let (ok, all_hashes) = thread::scope(|s| -> Result<(bool, Vec<cache::KeyHash>)> {
         s.spawn(|| {
-            report::reporter(keep_going, rx, Progress::new(format, Some(n_batches), out));
+            report::reporter(keep_going, total_files, rx, progress);
         });
 
         let result = pool.install(|| -> Result<(bool, Vec<cache::KeyHash>)> {
@@ -160,13 +170,19 @@ fn run(mut c: process::Command, displayed_command: &str, no_capture: bool) -> Re
         let failure_output = if success {
             None
         } else {
-            let mut buf = Vec::new();
-            buf.extend_from_slice(b"\n");
+            let mut buf = Vec::with_capacity(
+                displayed_command.len() + output.stderr.len() + output.stdout.len() + 2,
+            );
             buf.extend_from_slice(displayed_command.as_bytes());
-            buf.extend_from_slice(b"\n");
-            buf.extend_from_slice(&output.stdout);
-            buf.extend_from_slice(b"\n");
-            buf.extend_from_slice(&output.stderr);
+            if !output.stdout.is_empty() {
+                buf.extend_from_slice(b"\n");
+                buf.extend_from_slice(output.stdout.trim_ascii_end());
+            }
+            if !output.stderr.is_empty() {
+                buf.extend_from_slice(b"\n");
+                buf.extend_from_slice(output.stderr.trim_ascii_end());
+            }
+            buf.push(b'\n');
             Some(buf)
         };
         Ok(RunResult {

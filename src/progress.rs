@@ -66,14 +66,21 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
     /// Report progress at the current completed position.
     pub(crate) fn write(&mut self, msg: &str) {
         if self.should_write() {
-            report_line(self.format, self.completed, self.total, msg, self.out);
+            report_line(self.format, self.completed, self.total, msg, self.out, true);
         }
     }
 
     /// Report progress at completed+1 (showing the item being worked on).
     pub(crate) fn report(&mut self, msg: &str) {
         if self.should_write() {
-            report_line(self.format, self.completed + 1, self.total, msg, self.out);
+            report_line(
+                self.format,
+                self.completed + 1,
+                self.total,
+                msg,
+                self.out,
+                true,
+            );
         }
     }
 
@@ -83,11 +90,23 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
             Format::Newline | Format::No => b"".as_slice(),
         };
         drop(self.out.write(prefix));
+        drop(self.out.write_all(b"FAILED:\n"));
         drop(self.out.write_all(msg));
     }
 
     pub(crate) fn done(mut self) {
         self.done = true;
+    }
+
+    pub(crate) fn finalize(self, msg: &str) {
+        report_line(
+            self.format,
+            self.completed,
+            self.total,
+            msg,
+            self.out,
+            false,
+        );
     }
 }
 
@@ -99,19 +118,13 @@ impl<W: Write + ?Sized> Drop for Progress<'_, W> {
     }
 }
 
-pub(crate) fn prefix(format: Format) -> &'static str {
-    match format {
-        Format::Terminal => "\x1b[2K\r",
-        Format::Newline | Format::No => "",
-    }
-}
-
 pub(crate) fn report_line(
     format: Format,
     completed: usize,
     total: Option<usize>,
     msg: &str,
     out: &mut (impl Write + ?Sized),
+    trunc: bool,
 ) {
     struct Total(Option<usize>);
     impl std::fmt::Display for Total {
@@ -134,7 +147,7 @@ pub(crate) fn report_line(
         match format {
             Format::No => (),
             Format::Terminal => {
-                if msg.len() > 60 {
+                if msg.len() > 60 && trunc {
                     let shorter = &msg[0..60];
                     drop(write!(out, "\x1b[2K\r[{completed}/{total}] {shorter}..."));
                 } else {
@@ -161,7 +174,7 @@ mod tests {
     #[test]
     fn report_line_terminal_empty_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Terminal, 5, Some(10), "", &mut buf);
+        report_line(Format::Terminal, 5, Some(10), "", &mut buf, true);
         expect![[r#"\u{1b}[2K\r[5/10]"#]].assert_eq(&to_str(&buf).escape_default().to_string());
     }
 
@@ -169,7 +182,7 @@ mod tests {
     fn report_line_terminal_truncates_long_msg() {
         let mut buf = Vec::new();
         let long_msg = "a".repeat(100);
-        report_line(Format::Terminal, 1, Some(5), &long_msg, &mut buf);
+        report_line(Format::Terminal, 1, Some(5), &long_msg, &mut buf, true);
         expect![[
             r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."#
         ]]
@@ -179,7 +192,7 @@ mod tests {
     #[test]
     fn report_line_newline_with_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Newline, 3, Some(10), "working", &mut buf);
+        report_line(Format::Newline, 3, Some(10), "working", &mut buf, true);
         expect![[r#"
             [3/10] working
         "#]]
@@ -189,7 +202,7 @@ mod tests {
     #[test]
     fn report_line_newline_empty_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Newline, 3, Some(10), "", &mut buf);
+        report_line(Format::Newline, 3, Some(10), "", &mut buf, true);
         expect![[r#"
             [3/10]
         "#]]
@@ -200,7 +213,7 @@ mod tests {
     fn report_line_newline_no_truncation() {
         let mut buf = Vec::new();
         let long_msg = "a".repeat(100);
-        report_line(Format::Newline, 1, Some(5), &long_msg, &mut buf);
+        report_line(Format::Newline, 1, Some(5), &long_msg, &mut buf, true);
         expect![[r#"
             [1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         "#]]
@@ -210,7 +223,7 @@ mod tests {
     #[test]
     fn report_line_no_format() {
         let mut buf = Vec::new();
-        report_line(Format::No, 1, Some(10), "hello", &mut buf);
+        report_line(Format::No, 1, Some(10), "hello", &mut buf, false);
         expect![[""]].assert_eq(to_str(&buf));
     }
 
@@ -233,7 +246,7 @@ mod tests {
         let mut progress = Progress::new(Format::Terminal, Some(10), &mut buf);
         progress.fail(b"error");
         progress.done();
-        expect![[r#"\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
+        expect![[r#"\nFAILED:\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
     }
 
     #[test]
@@ -242,7 +255,10 @@ mod tests {
         let mut progress = Progress::new(Format::Newline, Some(10), &mut buf);
         progress.fail(b"error");
         progress.done();
-        expect![["error"]].assert_eq(to_str(&buf));
+        expect![[r#"
+            FAILED:
+            error"#]]
+        .assert_eq(to_str(&buf));
     }
 
     #[test]

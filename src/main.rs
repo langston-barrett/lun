@@ -113,7 +113,7 @@ pub(crate) fn go(
         cli::Command::Run(run) => {
             let config = config
                 .ok_or_else(|| anyhow::anyhow!("Config file not found. Hint: try `lun init`."))?;
-            run::go(paths, run, &config, &lints, out_config, out).map(bool::from)
+            run::go(paths, run, &config, &lints, out_config, out)
         }
         cli::Command::Init(init) => {
             let config_path = paths

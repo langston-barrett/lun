@@ -23,6 +23,7 @@ run
 [0/?] Collecting files
 [1/1] Planning
 [1/1] false (1/1)
-Command failed:
+FAILED:
 false <TEMP>/lun.toml
+[0/1] 1 error
 ```
