@@ -426,7 +426,9 @@ mod tests {
 
     #[test]
     fn color_fail() {
-        colored::control::set_override(true);
+        unsafe {
+            std::env::set_var("CLICOLOR_FORCE", "1");
+        }
         let mut buf = Vec::new();
         let mut progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.fail(b"error");
@@ -435,12 +437,16 @@ mod tests {
             [31mFAILED[0m:
             error"#]]
         .assert_eq(to_str(&buf));
-        colored::control::unset_override();
+        unsafe {
+            std::env::remove_var("CLICOLOR_FORCE");
+        }
     }
 
     #[test]
     fn color_finalize_no_errors() {
-        colored::control::set_override(true);
+        unsafe {
+            std::env::set_var("CLICOLOR_FORCE", "1");
+        }
         let mut buf = Vec::new();
         let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.finalize("done", false);
@@ -448,12 +454,16 @@ mod tests {
             [32m[0/10][0m done
         "#]]
         .assert_eq(to_str(&buf));
-        colored::control::unset_override();
+        unsafe {
+            std::env::remove_var("CLICOLOR_FORCE");
+        }
     }
 
     #[test]
     fn color_finalize_with_errors() {
-        colored::control::set_override(true);
+        unsafe {
+            std::env::set_var("CLICOLOR_FORCE", "1");
+        }
         let mut buf = Vec::new();
         let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
         progress.finalize("failed", true);
@@ -461,6 +471,8 @@ mod tests {
             [31m[0/10][0m failed
         "#]]
         .assert_eq(to_str(&buf));
-        colored::control::unset_override();
+        unsafe {
+            std::env::remove_var("CLICOLOR_FORCE");
+        }
     }
 }

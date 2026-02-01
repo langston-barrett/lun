@@ -10,15 +10,48 @@ use std::env;
 
 use crate::out;
 
-// Mutex to serialize access to colored::control global state
-static COLOR_LOCK: Mutex<()> = Mutex::new(());
+// Mutex to serialize test execution that modifies environment variables
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-/// RAII guard to ensure `colored::control` state is reset
-struct ColorGuard;
+/// Guard to manage `CLICOLOR_FORCE` environment variable for tests
+struct ColorEnvGuard {
+    was_set: bool,
+    old_value: Option<String>,
+    _lock: std::sync::MutexGuard<'static, ()>,
+}
 
-impl Drop for ColorGuard {
+impl ColorEnvGuard {
+    fn new(enable: bool) -> Self {
+        let lock = ENV_LOCK.lock().unwrap();
+        let old_value = env::var("CLICOLOR_FORCE").ok();
+        let was_set = old_value.is_some();
+        
+        if enable {
+            // SAFETY: We're in a test environment and hold the lock
+            unsafe {
+                env::set_var("CLICOLOR_FORCE", "1");
+            }
+        } else if was_set {
+            // Unset it if it was previously set
+            unsafe {
+                env::remove_var("CLICOLOR_FORCE");
+            }
+        }
+        
+        Self { was_set, old_value, _lock: lock }
+    }
+}
+
+impl Drop for ColorEnvGuard {
     fn drop(&mut self) {
-        colored::control::unset_override();
+        // SAFETY: We hold the lock and are restoring the original state
+        unsafe {
+            if let Some(ref value) = self.old_value {
+                env::set_var("CLICOLOR_FORCE", value);
+            } else if self.was_set || env::var("CLICOLOR_FORCE").is_ok() {
+                env::remove_var("CLICOLOR_FORCE");
+            }
+        }
     }
 }
 
@@ -213,18 +246,9 @@ fn update_expected_output(path: &Path, line_start: usize, new_output: &str) -> R
 
 /// Run a single e2e test
 pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
-    // Acquire lock to serialize access to colored::control global state
-    let _lock = COLOR_LOCK.lock().unwrap();
-
-    // Force colors on/off for the colored crate based on ansi_mode
-    // Use RAII guard to ensure state is reset even on early return
-    let _color_guard = ColorGuard;
-    if ansi_mode {
-        colored::control::set_override(true);
-    } else {
-        colored::control::set_override(false);
-    }
-
+    // Use environment variable to control colored crate instead of colored::control API
+    let _color_guard = ColorEnvGuard::new(ansi_mode);
+    
     let test_case = parse_test_file(test_path)?;
 
     let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
