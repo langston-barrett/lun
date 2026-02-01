@@ -2,6 +2,8 @@ use std::cmp;
 use std::io::Write;
 use std::time::{Duration, Instant};
 
+use colored::Colorize;
+
 use crate::out;
 
 #[derive(Clone, Copy, Debug)]
@@ -32,6 +34,7 @@ pub(crate) struct Progress<'a, W: Write + ?Sized> {
     pub(crate) total: Option<usize>,
     #[allow(dead_code)]
     interval: usize,
+    color: bool,
     out: &'a mut W,
     done: bool,
     last_write: Option<Instant>,
@@ -42,6 +45,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
         format: Format,
         total: Option<usize>,
         interval: Option<usize>,
+        color: bool,
         out: &'a mut W,
     ) -> Self {
         Self {
@@ -49,6 +53,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
             completed: 0,
             total,
             interval: cmp::max(interval.unwrap_or(1), 1),
+            color,
             out,
             done: false,
             last_write: None,
@@ -84,7 +89,16 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
     /// Report progress at the current completed position.
     pub(crate) fn write(&mut self, msg: &str) {
         if self.should_write() {
-            report_line(self.format, self.completed, self.total, msg, self.out, true);
+            report_line(
+                self.format,
+                self.completed,
+                self.total,
+                msg,
+                self.out,
+                true,
+                false,
+                false,
+            );
         }
     }
 
@@ -98,6 +112,8 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
                 msg,
                 self.out,
                 true,
+                false,
+                false,
             );
         }
     }
@@ -108,7 +124,12 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
             Format::Newline | Format::No => b"".as_slice(),
         };
         drop(self.out.write(prefix));
-        drop(self.out.write_all(b"FAILED:\n"));
+        let failed_text = if self.color {
+            format!("{}:\n", "FAILED".red())
+        } else {
+            "FAILED:\n".to_string()
+        };
+        drop(self.out.write_all(failed_text.as_bytes()));
         drop(self.out.write_all(msg));
     }
 
@@ -116,7 +137,7 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
         self.done = true;
     }
 
-    pub(crate) fn finalize(self, msg: &str) {
+    pub(crate) fn finalize(self, msg: &str, errors: bool) {
         report_line(
             self.format,
             self.completed,
@@ -124,6 +145,8 @@ impl<'a, W: Write + ?Sized> Progress<'a, W> {
             msg,
             self.out,
             false,
+            self.color,
+            errors,
         );
     }
 }
@@ -136,6 +159,7 @@ impl<W: Write + ?Sized> Drop for Progress<'_, W> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn report_line(
     format: Format,
     completed: usize,
@@ -143,6 +167,8 @@ pub(crate) fn report_line(
     msg: &str,
     out: &mut (impl Write + ?Sized),
     trunc: bool,
+    color: bool,
+    errors: bool,
 ) {
     struct Total(Option<usize>);
     impl std::fmt::Display for Total {
@@ -155,32 +181,43 @@ pub(crate) fn report_line(
     }
     let total = Total(total);
 
+    let progress = format!("[{completed}/{total}]");
+    let progress = if color {
+        if errors {
+            progress.red().to_string()
+        } else {
+            progress.green().to_string()
+        }
+    } else {
+        progress
+    };
+
     if msg.is_empty() {
         match format {
             Format::No => (),
-            Format::Terminal(_) => drop(write!(out, "\x1b[2K\r[{completed}/{total}]")),
-            Format::Newline => drop(writeln!(out, "[{completed}/{total}]")),
+            Format::Terminal(_) => drop(write!(out, "\x1b[2K\r{progress}")),
+            Format::Newline => drop(writeln!(out, "{progress}")),
         }
     } else {
         match format {
             Format::No => (),
             Format::Terminal(term_width) => {
-                let progress = format!("[{completed}/{total}] ");
+                let progress_width = format!("[{completed}/{total}] ").len();
                 let max_len = term_width.map(|w| {
-                    usize::from(w).saturating_sub(progress.len().saturating_add("...".len()))
+                    usize::from(w).saturating_sub(progress_width.saturating_add("...".len()))
                 });
                 if let Some(max) = max_len
                     && msg.len() > max
                     && trunc
                 {
                     let shorter = &msg[0..max];
-                    drop(write!(out, "\x1b[2K\r{progress}{shorter}..."));
+                    drop(write!(out, "\x1b[2K\r{progress} {shorter}..."));
                 } else {
-                    drop(write!(out, "\x1b[2K\r{progress}{msg}"));
+                    drop(write!(out, "\x1b[2K\r{progress} {msg}"));
                 }
             }
             Format::Newline => {
-                drop(writeln!(out, "[{completed}/{total}] {msg}"));
+                drop(writeln!(out, "{progress} {msg}"));
             }
         }
     }
@@ -199,7 +236,16 @@ mod tests {
     #[test]
     fn report_line_terminal_empty_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Terminal(None), 5, Some(10), "", &mut buf, true);
+        report_line(
+            Format::Terminal(None),
+            5,
+            Some(10),
+            "",
+            &mut buf,
+            true,
+            false,
+            false,
+        );
         expect![[r#"\u{1b}[2K\r[5/10]"#]].assert_eq(&to_str(&buf).escape_default().to_string());
     }
 
@@ -215,6 +261,8 @@ mod tests {
             &long_msg,
             &mut buf,
             true,
+            false,
+            false,
         );
         expect![[r#"\u{1b}[2K\r[1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."#]]
         .assert_eq(&to_str(&buf).escape_default().to_string());
@@ -223,7 +271,16 @@ mod tests {
     #[test]
     fn report_line_newline_with_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Newline, 3, Some(10), "working", &mut buf, true);
+        report_line(
+            Format::Newline,
+            3,
+            Some(10),
+            "working",
+            &mut buf,
+            true,
+            false,
+            false,
+        );
         expect![[r#"
             [3/10] working
         "#]]
@@ -233,7 +290,16 @@ mod tests {
     #[test]
     fn report_line_newline_empty_msg() {
         let mut buf = Vec::new();
-        report_line(Format::Newline, 3, Some(10), "", &mut buf, true);
+        report_line(
+            Format::Newline,
+            3,
+            Some(10),
+            "",
+            &mut buf,
+            true,
+            false,
+            false,
+        );
         expect![[r#"
             [3/10]
         "#]]
@@ -244,7 +310,16 @@ mod tests {
     fn report_line_newline_no_truncation() {
         let mut buf = Vec::new();
         let long_msg = "a".repeat(100);
-        report_line(Format::Newline, 1, Some(5), &long_msg, &mut buf, true);
+        report_line(
+            Format::Newline,
+            1,
+            Some(5),
+            &long_msg,
+            &mut buf,
+            true,
+            false,
+            false,
+        );
         expect![[r#"
             [1/5] aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
         "#]]
@@ -254,14 +329,23 @@ mod tests {
     #[test]
     fn report_line_no_format() {
         let mut buf = Vec::new();
-        report_line(Format::No, 1, Some(10), "hello", &mut buf, false);
+        report_line(
+            Format::No,
+            1,
+            Some(10),
+            "hello",
+            &mut buf,
+            false,
+            false,
+            false,
+        );
         expect![[""]].assert_eq(to_str(&buf));
     }
 
     #[test]
     fn progress_write_at_completed() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, false, &mut buf);
         progress.completed = 5;
         progress.write("msg");
         progress.done();
@@ -274,7 +358,7 @@ mod tests {
     #[test]
     fn progress_fail_terminal_adds_newline() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, false, &mut buf);
         progress.fail(b"error");
         progress.done();
         expect![[r#"\nFAILED:\nerror"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -283,7 +367,7 @@ mod tests {
     #[test]
     fn progress_fail_newline_no_prefix() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, false, &mut buf);
         progress.fail(b"error");
         progress.done();
         expect![[r#"
@@ -296,7 +380,7 @@ mod tests {
     fn progress_drop_terminal_adds_newline() {
         let mut buf = Vec::new();
         {
-            let _progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
+            let _progress = Progress::new(Format::Terminal(None), Some(10), None, false, &mut buf);
             // dropped without calling done()
         }
         expect![[r#"\n"#]].assert_eq(&to_str(&buf).escape_default().to_string());
@@ -306,7 +390,7 @@ mod tests {
     fn progress_done_prevents_drop_newline() {
         let mut buf = Vec::new();
         {
-            let progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
+            let progress = Progress::new(Format::Terminal(None), Some(10), None, false, &mut buf);
             progress.done();
         }
         expect![[""]].assert_eq(to_str(&buf));
@@ -315,7 +399,7 @@ mod tests {
     #[test]
     fn progress_rate_limit_terminal() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Terminal(None), Some(10), None, false, &mut buf);
         progress.write("first");
         progress.write("second"); // should be rate-limited
         progress.write("third"); // should be rate-limited
@@ -327,7 +411,7 @@ mod tests {
     #[test]
     fn progress_no_rate_limit_newline() {
         let mut buf = Vec::new();
-        let mut progress = Progress::new(Format::Newline, Some(10), None, &mut buf);
+        let mut progress = Progress::new(Format::Newline, Some(10), None, false, &mut buf);
         progress.write("first");
         progress.write("second");
         progress.write("third");
@@ -338,5 +422,45 @@ mod tests {
             [0/10] third
         "#]]
         .assert_eq(to_str(&buf));
+    }
+
+    #[test]
+    fn color_fail() {
+        colored::control::set_override(true);
+        let mut buf = Vec::new();
+        let mut progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
+        progress.fail(b"error");
+        progress.done();
+        expect![[r#"
+            [31mFAILED[0m:
+            error"#]]
+        .assert_eq(to_str(&buf));
+        colored::control::unset_override();
+    }
+
+    #[test]
+    fn color_finalize_no_errors() {
+        colored::control::set_override(true);
+        let mut buf = Vec::new();
+        let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
+        progress.finalize("done", false);
+        expect![[r#"
+            [32m[0/10][0m done
+        "#]]
+        .assert_eq(to_str(&buf));
+        colored::control::unset_override();
+    }
+
+    #[test]
+    fn color_finalize_with_errors() {
+        colored::control::set_override(true);
+        let mut buf = Vec::new();
+        let progress = Progress::new(Format::Newline, Some(10), None, true, &mut buf);
+        progress.finalize("failed", true);
+        expect![[r#"
+            [31m[0/10][0m failed
+        "#]]
+        .assert_eq(to_str(&buf));
+        colored::control::unset_override();
     }
 }
