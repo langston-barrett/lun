@@ -22,11 +22,11 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 dhat = { version = "0.3.3", optional = true }
 terminal_size = "0.4.3"
-colored = "3.1.1"
 
 [dev-dependencies]
 expect-test = "1"
 tempfile = "3"
+regex = "1"
 
 [features]
 dhat = ["dep:dhat"]

@@ -9,6 +9,47 @@ use std::env;
 
 use crate::out;
 
+/// Process ANSI escape sequences in output for testing.
+///
+/// Converts ANSI escape sequences into readable text markers that can be used in test assertions.
+/// This allows tests to verify that the correct colors are being applied without having to deal
+/// with raw ANSI codes.
+///
+/// # Conversions
+/// - Green text: `\x1b[32m...\x1b[0m` → `green[...]`
+/// - Red text: `\x1b[31m...\x1b[0m` → `red[...]`
+/// - Terminal clear sequence: `\x1b[2K\r` → `\n\r`
+///
+/// # Arguments
+/// * `output` - The raw output string containing ANSI escape sequences
+///
+/// # Returns
+/// A string with ANSI sequences replaced by readable text markers
+#[cfg(test)]
+fn process_ansi_output(output: &str) -> String {
+    use regex::Regex;
+    use std::sync::OnceLock;
+
+    // Compile regexes once and reuse them
+    static GREEN_RE: OnceLock<Regex> = OnceLock::new();
+    static RED_RE: OnceLock<Regex> = OnceLock::new();
+
+    let mut result = output.to_string();
+
+    // Replace terminal clear-line escape sequences with newline followed by \r
+    result = result.replace("\x1b[2K\r", "\n\\r");
+
+    // Replace green text: \x1b[32m...\x1b[0m -> green[...]
+    let green_re = GREEN_RE.get_or_init(|| Regex::new(r"\x1b\[32m([^\x1b]*)\x1b\[0m").unwrap());
+    result = green_re.replace_all(&result, "green[$1]").to_string();
+
+    // Replace red text: \x1b[31m...\x1b[0m -> red[...]
+    let red_re = RED_RE.get_or_init(|| Regex::new(r"\x1b\[31m([^\x1b]*)\x1b\[0m").unwrap());
+    result = red_re.replace_all(&result, "red[$1]").to_string();
+
+    result
+}
+
 #[derive(Debug)]
 struct Command {
     args: Vec<String>,
@@ -158,7 +199,7 @@ fn update_expected_output(path: &Path, line_start: usize, new_output: &str) -> R
 }
 
 /// Run a single e2e test
-fn run_test(test_path: &Path) -> Result<()> {
+pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
     let test_case = parse_test_file(test_path)?;
 
     let temp_dir = tempfile::tempdir().context("Failed to create temp directory")?;
@@ -196,7 +237,7 @@ fn run_test(test_path: &Path) -> Result<()> {
     let env = crate::env::Env {
         cwd: temp_path.to_path_buf(),
         start_time: None,
-        term_width: None,
+        term_width: if ansi_mode { Some(60) } else { None },
     };
     let paths = crate::Paths {
         config: Some(config_path.clone()),
@@ -210,6 +251,10 @@ fn run_test(test_path: &Path) -> Result<()> {
         cli_args.push(temp_path.join("lun.toml").to_string_lossy().to_string());
         cli_args.push("--cache".to_string());
         cli_args.push(temp_path.join(".lun").to_string_lossy().to_string());
+        if ansi_mode {
+            cli_args.push("--color".to_string());
+            cli_args.push("always".to_string());
+        }
         cli_args.extend(command.args.clone());
         if command.args.starts_with(&["run".to_string()]) {
             cli_args.push("--jobs".to_string());
@@ -268,8 +313,13 @@ fn run_test(test_path: &Path) -> Result<()> {
         // Get captured output and normalize escape sequences
         let captured = {
             let raw = String::from_utf8_lossy(&output_buffer).to_string();
-            // Replace terminal clear-line escape sequences with newlines for readability
-            raw.replace("\x1b[2K\r", "")
+            if ansi_mode {
+                // Process ANSI escape sequences into text markers
+                process_ansi_output(&raw)
+            } else {
+                // Replace terminal clear-line escape sequences with newlines for readability
+                raw.replace("\x1b[2K\r", "")
+            }
         };
 
         // Handle errors by capturing them as output
@@ -340,7 +390,7 @@ fn parse_test_file_debug() {
 
 fn test_file(name: &str) {
     let path = PathBuf::from(format!("tests/e2e/{name}.md"));
-    run_test(&path).unwrap();
+    run_test(&path, false).unwrap();
 }
 
 #[test]
