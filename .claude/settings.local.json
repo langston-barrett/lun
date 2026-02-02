@@ -18,7 +18,12 @@
       "Bash(UPDATE_EXPECT=1 cargo test:*)",
       "Bash(wc:*)",
       "Bash(./target/release/lun run:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(xargs cat:*)",
+      "Bash(/home/langston/code/lun/target/debug/lun)",
+      "Bash(/home/langston/code/lun/target/debug/lun run:*)",
+      "Bash(./target/debug/lun run:*)",
+      "Bash(cargo clean:*)"
     ]
   }
 }

@@ -1,11 +1,12 @@
 use std::collections::HashSet;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::num::NonZeroUsize;
 use std::os::unix::process::ExitStatusExt as _;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{cmp, process, thread};
 
 use anyhow::{Context, Result};
@@ -46,6 +47,7 @@ pub(crate) fn exec(
     let (tx, rx) = mpsc::channel::<report::Event>();
 
     let failed = AtomicBool::new(false);
+    let remaining = AtomicUsize::new(n_batches);
 
     let total_files = batches
         .iter()
@@ -64,7 +66,15 @@ pub(crate) fn exec(
             let results = batches
                 .into_par_iter()
                 .map(|batch| -> Result<(bool, Vec<cache::KeyHash>)> {
-                    exec_batch(no_capture, keep_going, mtime_enabled, &failed, &tx, batch)
+                    exec_batch(
+                        no_capture,
+                        keep_going,
+                        mtime_enabled,
+                        &failed,
+                        &remaining,
+                        &tx,
+                        batch,
+                    )
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -95,6 +105,7 @@ fn exec_batch(
     keep_going: bool,
     mtime_enabled: bool,
     failed: &AtomicBool,
+    remaining: &AtomicUsize,
     tx: &mpsc::Sender<report::Event>,
     batch: batch::Batch,
 ) -> std::result::Result<(bool, Vec<cache::KeyHash>), anyhow::Error> {
@@ -109,17 +120,21 @@ fn exec_batch(
     drop(tx.send(report::Event::Start {
         batch: rep_batch.clone(),
     }));
-    let result = run(c, &cmd_str, no_capture)?;
+    let result = run(c, &cmd_str, no_capture, remaining, tx)?;
     let success = result.status.success();
 
     if !success {
         failed.store(true, Ordering::Relaxed);
+        remaining.fetch_sub(1, Ordering::Relaxed);
         if let Some(output) = result.failure_output {
             drop(tx.send(report::Event::Failed { output }));
         }
     }
     debug!("{}: {cmd_str}", if success { "success" } else { "failed" });
-    drop(tx.send(report::Event::Done { batch: rep_batch }));
+    drop(tx.send(report::Event::Done {
+        batch: rep_batch.clone(),
+    }));
+    remaining.fetch_sub(1, Ordering::Relaxed);
     let hashes = if success {
         done(batch.cmd, mtime_enabled)
     } else {
@@ -134,7 +149,13 @@ struct RunResult {
     failure_output: Option<Vec<u8>>,
 }
 
-fn run(mut c: process::Command, displayed_command: &str, no_capture: bool) -> Result<RunResult> {
+fn run(
+    mut c: process::Command,
+    displayed_command: &str,
+    no_capture: bool,
+    remaining: &AtomicUsize,
+    tx: &mpsc::Sender<report::Event>,
+) -> Result<RunResult> {
     // TODO: This should depend on out_config
     // https://docs.astral.sh/ruff/faq/#how-can-i-disableforce-ruffs-color-output
     c.env("FORCE_COLOR", "1");
@@ -160,36 +181,134 @@ fn run(mut c: process::Command, displayed_command: &str, no_capture: bool) -> Re
             failure_output: None,
         })
     } else {
-        let output = c
-            .output()
+        // Spawn process with piped stdout/stderr for streaming
+        c.stdout(Stdio::piped());
+        c.stderr(Stdio::piped());
+        let mut child = c
+            .spawn()
             .with_context(|| format!("Failed to execute command: {displayed_command}"))?;
-        let success = output.status.success();
-        if !output.stdout.is_empty() && success {
-            trace!("{}", String::from_utf8_lossy(&output.stdout));
+
+        #[allow(clippy::unwrap_used)]
+        let stdout = child.stdout.take().unwrap();
+        #[allow(clippy::unwrap_used)]
+        let stderr = child.stderr.take().unwrap();
+
+        let start_time = Instant::now();
+        let mut stdout_buffer = Vec::new();
+        let mut stderr_buffer = Vec::new();
+
+        // Create channels for reading stdout/stderr in separate threads
+        let (output_tx, output_rx) = mpsc::channel::<(bool, Vec<u8>)>();
+
+        // Spawn threads to read stdout and stderr
+        thread::scope(|s| {
+            let output_tx_clone = output_tx.clone();
+            s.spawn(move || {
+                let mut reader = BufReader::new(stdout);
+                let mut line = Vec::new();
+                loop {
+                    line.clear();
+                    match reader.read_until(b'\n', &mut line) {
+                        Ok(0) => break, // EOF
+                        Ok(_) => {
+                            drop(output_tx_clone.send((true, line.clone())));
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+
+            let output_tx_clone = output_tx.clone();
+            s.spawn(move || {
+                let mut reader = BufReader::new(stderr);
+                let mut line = Vec::new();
+                loop {
+                    line.clear();
+                    match reader.read_until(b'\n', &mut line) {
+                        Ok(0) => break, // EOF
+                        Ok(_) => {
+                            drop(output_tx_clone.send((false, line.clone())));
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
+
+            drop(output_tx);
+
+            // Collect output and stream lines when appropriate
+            let mut last_output_time: Option<Instant> = None;
+            while let Ok((is_stdout, line_bytes)) = output_rx.recv() {
+                let buffer = if is_stdout {
+                    &mut stdout_buffer
+                } else {
+                    &mut stderr_buffer
+                };
+                buffer.extend_from_slice(&line_bytes);
+
+                // Check if we should stream this line
+                let remaining = remaining.load(Ordering::Relaxed);
+                trace!("remaining = {remaining}");
+                let last = remaining == 1;
+                if !last {
+                    continue;
+                }
+                trace!("Last running: {}", batch::display_cmd(&c));
+
+                let elapsed = start_time.elapsed();
+                let slow = elapsed > Duration::from_secs(1);
+                if !slow {
+                    continue;
+                }
+
+                let rate_limit_ok = last_output_time
+                    .is_none_or(|t| t.elapsed() >= crate::progress::TERMINAL_RATE_LIMIT);
+                if rate_limit_ok {
+                    let line_str = String::from_utf8_lossy(&line_bytes);
+                    let line_str = line_str.trim_end();
+                    if !line_str.is_empty() {
+                        drop(tx.send(report::Event::Output {
+                            line: line_str.to_string(),
+                        }));
+                        last_output_time = Some(Instant::now());
+                    }
+                }
+            }
+        });
+
+        // Wait for the process to complete
+        let status = child
+            .wait()
+            .with_context(|| format!("Failed to wait for command: {displayed_command}"))?;
+        let success = status.success();
+
+        if !stdout_buffer.is_empty() && success {
+            trace!("{}", String::from_utf8_lossy(&stdout_buffer));
         }
-        if !output.stderr.is_empty() && success {
-            trace!("{}", String::from_utf8_lossy(&output.stderr));
+        if !stderr_buffer.is_empty() && success {
+            trace!("{}", String::from_utf8_lossy(&stderr_buffer));
         }
+
         let failure_output = if success {
             None
         } else {
             let mut buf = Vec::with_capacity(
-                displayed_command.len() + output.stderr.len() + output.stdout.len() + 2,
+                displayed_command.len() + stderr_buffer.len() + stdout_buffer.len() + 2,
             );
             buf.extend_from_slice(displayed_command.as_bytes());
-            if !output.stdout.is_empty() {
+            if !stdout_buffer.is_empty() {
                 buf.extend_from_slice(b"\n");
-                buf.extend_from_slice(output.stdout.trim_ascii_end());
+                buf.extend_from_slice(stdout_buffer.trim_ascii_end());
             }
-            if !output.stderr.is_empty() {
+            if !stderr_buffer.is_empty() {
                 buf.extend_from_slice(b"\n");
-                buf.extend_from_slice(output.stderr.trim_ascii_end());
+                buf.extend_from_slice(stderr_buffer.trim_ascii_end());
             }
             buf.push(b'\n');
             Some(buf)
         };
         Ok(RunResult {
-            status: output.status,
+            status,
             failure_output,
         })
     }

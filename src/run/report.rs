@@ -36,6 +36,7 @@ pub(super) enum Event {
     Start { batch: Batch },
     Done { batch: Batch },
     Failed { output: Vec<u8> },
+    Output { line: String },
 }
 
 #[derive(Debug)]
@@ -102,6 +103,21 @@ pub(super) fn reporter<W: Write + ?Sized>(
                 display_batches(&mut displayed_batches, progress.format, &running);
                 debug_assert!(!displayed_batches.is_empty());
                 progress.report(&displayed_batches);
+            }
+            Ok(Event::Output { line }) => {
+                // Only display if there's exactly one command running
+                let num_running = running
+                    .values()
+                    .map(RunningBatches::num_running)
+                    .sum::<usize>();
+
+                if num_running <= 1 {
+                    display_batches(&mut displayed_batches, progress.format, &running);
+                    if !displayed_batches.is_empty() && !line.is_empty() {
+                        write!(&mut displayed_batches, ": {line}").ok();
+                    }
+                    progress.report(&displayed_batches);
+                }
             }
             Ok(Event::Failed { output }) => {
                 progress.fail(&output);
