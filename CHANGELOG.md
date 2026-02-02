@@ -2,9 +2,30 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+### Changed
+
+- Major overhaul of progress reporting:
+
+  - New output format: `[5/32] clippy (1/1), ttlint (2-3/8), ruff (6/10)...`
+  - Stream output of longest-running command after 1s
+  - Always output a summary line, even in case of failure(s)
+  - Colors!
+  - Added duration to final report (see `--print-timings`)
+  - `[0/?] Collecting files` line is now erased when commands start running
+  - Terminal width is detected and used to limit output
+  - Only 10% of `[M/N] Planning` messages are printed
+  - `--watch` now properly clears the terminal
+
+### Fixed
+
+- Fixed a bug where tools with `include_unchanged = true` always reran.
+
 ## [0.10.0] - 2026-01-29
 
 [0.10.0]: https://github.com/langston-barrett/lun/releases/tag/v0.10.0
+
 - Add `--vcs` file for only running on files from `git ls-files`.
 
 ## [0.9.0] - 2026-01-28
