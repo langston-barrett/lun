@@ -23,6 +23,13 @@ configs = ["Cargo.toml"]
 fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
 [[linter]]
+name = "cargo test"
+cmd = "cargo test --color={{color}}"
+files = ["*.rs"]
+args = "none"
+configs = ["Cargo.toml"]
+
+[[linter]]
 cmd = "hlint --"
 files = ["*.hs"]
 configs = [

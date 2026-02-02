@@ -166,6 +166,10 @@ mod tests {
             configs = ["Cargo.toml"]
 
             [[tool]]
+            name = "cargo test"
+            configs = ["Cargo.toml"]
+
+            [[tool]]
             name = "cargo fmt"
             configs = ["Cargo.toml"]
         "#]]

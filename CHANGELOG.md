@@ -2,9 +2,16 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+### Added
+
+- Add `cargo test` to known linters
+
 ## [0.11.0] - 2026-02-02
 
 [0.11.0]: https://github.com/langston-barrett/lun/releases/tag/v0.11.0
+
 ### Changed
 
 - Major overhaul of progress reporting:
