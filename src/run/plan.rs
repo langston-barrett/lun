@@ -36,13 +36,15 @@ fn need_file<C: cache::Cache + ?Sized>(
     file: &mut files::File,
 ) -> bool {
     let mtime_key = cache::Key::from_mtime(file, tool);
-    if mtime_enabled && !tool.include_unchanged && !cache.needed(&mtime_key) {
+    if mtime_enabled && !cache.needed(&mtime_key) {
         debug!(
             "{}: not needed for {} (mtime)",
             file.path.display(),
             tool.display_name(),
         );
-        return false;
+        if !tool.include_unchanged {
+            return false;
+        }
     }
 
     if let Err(e) = file.fill_content_stamp() {
@@ -51,13 +53,7 @@ fn need_file<C: cache::Cache + ?Sized>(
     }
 
     let content_key = cache::Key::from_content(file, tool);
-    let is_needed = cache.needed(&content_key);
-
-    if tool.include_unchanged {
-        return true;
-    }
-
-    if !is_needed {
+    if !cache.needed(&content_key) {
         debug!(
             "{}: not needed for {} (content)",
             file.path.display(),
@@ -96,18 +92,29 @@ fn tool_commands<C: cache::Cache + ?Sized, W: Write + ?Sized>(
     debug_assert!(!files.is_empty());
     let tool = Arc::new(tool.clone());
     let refs = git::unchanged_refs_all(&tool.configs, refs);
+    let mut any_needed = false;
     let files = files
         .iter_mut()
         .filter_map(|f| {
             progress.increment();
             progress.write("Planning");
-            if is_match(&tool, f, cwd) && need_file(cache, &refs, mtime_enabled, &tool, f) {
-                Some(f.clone())
+            if is_match(&tool, f, cwd) {
+                let needed = need_file(cache, &refs, mtime_enabled, &tool, f);
+                any_needed |= needed;
+                if needed || tool.include_unchanged {
+                    Some(f.clone())
+                } else {
+                    None
+                }
             } else {
                 None
             }
         })
         .collect::<Vec<_>>();
+
+    if tool.include_unchanged && !any_needed {
+        return None; // #173
+    }
 
     if files.is_empty() {
         None
