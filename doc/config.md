@@ -109,6 +109,7 @@ The following tools are recognized by name:
 
 - `bash -n`
 - `cargo clippy`
+- `cargo test`
 - `hlint`
 - `jq null`
 - `make -n`
