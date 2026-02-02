@@ -1,6 +1,6 @@
 use crate::{
     cache::{self, CacheWriter},
-    cli, file, out,
+    cli, file, log, out,
     progress::{Format, Progress},
     run::{self, batch, filter, plan},
 };
@@ -332,6 +332,14 @@ fn batches_to_string(batches: &[batch::Batch]) -> Vec<String> {
 }
 
 fn test(path: &'static str) {
+    if std::env::var("LUN_TEST_LOG").is_ok() {
+        log::init_tracing(out::Config {
+            color: false,
+            interactive: false,
+            timestamps: false,
+            verbosity: tracing::Level::DEBUG,
+        });
+    }
     let test_file = PathBuf::from(path);
     let scenarios = parse_test_file(&test_file).unwrap();
     assert!(!scenarios.is_empty());

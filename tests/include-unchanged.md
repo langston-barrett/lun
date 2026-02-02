@@ -29,6 +29,8 @@ echo file1.txt file2.txt
 
 ## Scenario 2
 
+Has a new file, so needs to be rerun.
+
 ### Config
 
 ```toml
@@ -44,9 +46,37 @@ include_unchanged = true
 
 - `file1.txt`: 8b
 - `file2.txt`: 8b
+- `file3.txt`: 8b
 
 ### Output
 
 ```sh
-echo file1.txt file2.txt
+echo file1.txt file2.txt file3.txt
+```
+
+## Scenario 3
+
+No files have changed, so there are no "needed" files. The command should not
+run.
+
+### Config
+
+```toml
+[[linter]]
+name = "echo"
+cmd = "echo"
+files = ["*.txt"]
+args = "all"
+include_unchanged = true
+```
+
+### Files
+
+- `file1.txt`: 8b
+- `file2.txt`: 8b
+- `file3.txt`: 8b
+
+### Output
+
+```sh
 ```
