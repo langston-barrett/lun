@@ -125,7 +125,6 @@ fn exec_batch(
 
     if !success {
         failed.store(true, Ordering::Relaxed);
-        remaining.fetch_sub(1, Ordering::Relaxed);
         if let Some(output) = result.failure_output {
             drop(tx.send(report::Event::Failed { output }));
         }
