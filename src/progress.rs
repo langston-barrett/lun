@@ -24,7 +24,7 @@ impl Format {
     }
 }
 
-const TERMINAL_RATE_LIMIT: Duration = Duration::from_millis(100);
+pub(crate) const TERMINAL_RATE_LIMIT: Duration = Duration::from_millis(100);
 
 pub(crate) struct Progress<'a, W: Write + ?Sized> {
     pub(crate) format: Format,
