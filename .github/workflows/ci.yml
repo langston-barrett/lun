@@ -24,5 +24,4 @@ jobs:
       # Run with just the automatically installed tools, see the `lint` workflow
       # for the others.
       pre-test-hook: |
-        # TODO: Reinstate this after 0.9.0
-        # cargo run -- -v run --only-tool='cargo clippy' --only-tool='cargo fmt' --only-tool='shellcheck'
+        cargo run -- -v run --only-tool='cargo clippy' --only-tool='cargo fmt' --only-tool='shellcheck'
