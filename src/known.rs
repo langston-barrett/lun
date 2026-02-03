@@ -33,8 +33,8 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         config::Linter {
             tool: config::Tool {
                 name: Some(String::from("cargo test")),
-                cmd: "cargo test --color={{color}}".to_string(),
-                files: vec!["*.rs".to_string()],
+                cmd: "cargo test --color={{color}} -- --color={{color}}".to_string(),
+                files: vec!["*".to_string()],
                 ignore: Vec::new(),
                 args: Args::None,
                 include_unchanged: false,

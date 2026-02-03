@@ -24,8 +24,8 @@ fix = "cargo clippy --color={{color}} --allow-dirty --fix"
 
 [[linter]]
 name = "cargo test"
-cmd = "cargo test --color={{color}}"
-files = ["*.rs"]
+cmd = "cargo test --color={{color}} -- --color={{color}}"
+files = ["*"]
 args = "none"
 configs = ["Cargo.toml"]
 
