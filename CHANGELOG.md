@@ -2,8 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.12.0] - 2026-02-03
 
+[0.12.0]: https://github.com/langston-barrett/lun/releases/tag/v0.12.0
 ### Added
 
 - Add `cargo test` to known linters
