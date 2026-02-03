@@ -112,8 +112,29 @@ def git_commit(message: str, files: list[Path]) -> None:
 def create_branch(version: str) -> None:
     """Create a new branch for the version bump."""
     branch_name = f"bump-actions-v{version}"
-    print(f"Creating branch: {branch_name}", file=sys.stderr)
-    run(["git", "checkout", "-b", branch_name])
+
+    # Check current branch
+    result = run(["git", "branch", "--show-current"], capture=True)
+    current_branch = result.stdout.strip()
+
+    if current_branch == branch_name:
+        print(f"Already on branch: {branch_name}", file=sys.stderr)
+        return
+
+    # Check if branch exists
+    result = run(
+        ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+        check=False,
+    )
+
+    if result.returncode == 0:
+        # Branch exists, check it out
+        print(f"Switching to existing branch: {branch_name}", file=sys.stderr)
+        run(["git", "checkout", branch_name])
+    else:
+        # Branch doesn't exist, create it
+        print(f"Creating branch: {branch_name}", file=sys.stderr)
+        run(["git", "checkout", "-b", branch_name])
 
 
 def push_and_wait_for_ci() -> None:
