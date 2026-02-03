@@ -24,7 +24,7 @@ jobs:
     - uses: langston-barrett/gha/.github/actions/install-linters@2038f7523e4ab93e52eb420a64e95f3b50edbe0a
     - name: Install tagref
       run: curl https://raw.githubusercontent.com/stepchowfun/tagref/v1.10.0/install.sh -LSfs | sh
-    - uses: langston-barrett/lun/.github/actions/lun@81aafdf9001c8e801b752b30101ef14957244b6d
+    - uses: langston-barrett/lun/.github/actions/lun@aff233f8a5cf4c72a8332941af8d6e56719aba78
       with:
         # clippy is run in ci.yml
         run-flags: "--check --skip-tool='cargo clippy'"
