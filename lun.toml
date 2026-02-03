@@ -10,6 +10,11 @@ name = "cargo fmt"
 configs = ["Cargo.toml"]
 
 [[tool]]
+name = "cargo test"
+configs = ["Cargo.toml"]
+files = ["*.md", "*.rs"]
+
+[[tool]]
 name = "mdlynx"
 
 [[tool]]

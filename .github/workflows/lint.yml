@@ -26,5 +26,5 @@ jobs:
       run: curl https://raw.githubusercontent.com/stepchowfun/tagref/v1.10.0/install.sh -LSfs | sh
     - uses: langston-barrett/lun/.github/actions/lun@aff233f8a5cf4c72a8332941af8d6e56719aba78
       with:
-        # clippy is run in ci.yml
-        run-flags: "--check --skip-tool='cargo clippy'"
+        # `cargo clippy`, `cargo test` are run in `ci.yml`
+        run-flags: "--check --skip-tool='cargo clippy' --skip-tool='cargo test'"
