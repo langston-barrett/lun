@@ -9,7 +9,7 @@ inputs:
   version:
     description: version (without the leading 'v')
     required: false
-    default: '0.9.0'
+    default: '0.12.0'
   target:
     description: Target triple
     required: false
@@ -25,7 +25,7 @@ inputs:
 runs:
   using: composite
   steps:
-  - uses: langston-barrett/lun/.github/actions/install-lun@7aa8ef3e31c5ff591a101c5c630e3046425637a0
+  - uses: langston-barrett/lun/.github/actions/install-lun@fc922b0046761c995ad7a40f343e14a432ca755d
     with:
       version: ${{ inputs.version }}
       target: ${{ inputs.target }}
