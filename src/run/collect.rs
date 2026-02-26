@@ -69,12 +69,9 @@ fn get_vcs_files(root: &Path) -> Result<Vec<PathBuf>> {
 }
 
 pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
-    let cache = fs::canonicalize(cache_dir).with_context(|| {
-        format!(
-            "Failed to canonicalize cache directory: {}",
-            cache_dir.display()
-        )
-    })?;
+    // Canonicalization may fail if the cache directory doesn't exist yet
+    // (e.g., when --no-cache is used), in which case we skip cache filtering.
+    let cache = fs::canonicalize(cache_dir).ok();
     let walker = WalkBuilder::new(root)
         .hidden(false)
         .filter_entry(move |e| {
@@ -85,7 +82,9 @@ pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
 
             path.extension().is_none_or(|e| e != "bck")
                 && !has_git_dir
-                && fs::canonicalize(path).is_ok_and(|p| !p.starts_with(&cache))
+                && cache.as_ref().is_none_or(|cache| {
+                    fs::canonicalize(path).is_ok_and(|p| !p.starts_with(cache))
+                })
         })
         .build();
     let mut paths = Vec::new();
