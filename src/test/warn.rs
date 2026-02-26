@@ -6,7 +6,11 @@ use expect_test::expect;
 
 use crate::out;
 
-fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Error> {
+fn test_with_cache_dir(
+    flags: &[&'static str],
+    config: &'static str,
+    cache: PathBuf,
+) -> Result<(), anyhow::Error> {
     let cli = crate::cli::Cli::try_parse_from(std::iter::once("lun").chain(flags.iter().copied()))
         .map_err(|e| e.to_string())
         .unwrap();
@@ -17,7 +21,7 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
     };
     let paths = crate::Paths {
         config: Some(PathBuf::from("test.toml")),
-        cache: PathBuf::from(".lun"),
+        cache,
     };
     let config = toml::from_str(config).unwrap();
     let out_config = out::Config::new(&env, cli.log);
@@ -31,6 +35,10 @@ fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Erro
         &mut io::sink(),
     )
     .map(|b| assert!(b))
+}
+
+fn test(flags: &[&'static str], config: &'static str) -> Result<(), anyhow::Error> {
+    test_with_cache_dir(flags, config, PathBuf::from(".lun"))
 }
 
 #[test]
@@ -214,4 +222,46 @@ args = "many"
     );
     let error_display = format!("{:#}", result.unwrap_err());
     expect!["found tools with empty `files` arrays and --deny=no-files"].assert_eq(&error_display);
+}
+
+#[test]
+fn no_cache_does_not_create_cache_dir() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cache_dir = temp_dir.path().join("cache-should-not-exist");
+    test_with_cache_dir(
+        &["run", "--dry-run", "--no-cache"],
+        r#"
+[[linter]]
+cmd = "lint --"
+files = ["*.py"]
+args = "many"
+"#,
+        cache_dir.clone(),
+    )
+    .unwrap();
+    assert!(
+        !cache_dir.exists(),
+        "cache dir should not be created with --no-cache"
+    );
+}
+
+#[test]
+fn fresh_does_not_create_cache_dir() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let cache_dir = temp_dir.path().join("cache-should-not-exist");
+    test_with_cache_dir(
+        &["run", "--dry-run", "--fresh"],
+        r#"
+[[linter]]
+cmd = "lint --"
+files = ["*.py"]
+args = "many"
+"#,
+        cache_dir.clone(),
+    )
+    .unwrap();
+    assert!(
+        !cache_dir.exists(),
+        "cache dir should not be created with --fresh"
+    );
 }

@@ -310,7 +310,9 @@ pub(crate) fn go(
     out: &mut (impl Write + Send),
 ) -> Result<bool> {
     lint(run_cli, config, lints)?;
-    fs::create_dir_all(&paths.cache)?; // just to create the dir
+    if !run_cli.no_cache && !run_cli.fresh {
+        fs::create_dir_all(&paths.cache)?;
+    }
     if run_cli.watch {
         watch(env, paths, out_config, run_cli, config, lints, out)?;
         Ok(true)
@@ -329,7 +331,7 @@ pub(crate) fn go(
         };
         let result = run(&config, &files, lints, start_time, out);
         #[cfg(debug_assertions)]
-        {
+        if !config.no_cache {
             debug!("Running again to check cache");
             let debug_cache = paths.cache.join("debug");
             drop(fs::remove_dir_all(&debug_cache));
