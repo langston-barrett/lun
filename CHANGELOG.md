@@ -2,8 +2,9 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
-## next
+## [0.13.0] - 2026-02-26
 
+[0.13.0]: https://github.com/langston-barrett/lun/releases/tag/v0.13.0
 ### Added
 
 - Add `hlint` to known linters
