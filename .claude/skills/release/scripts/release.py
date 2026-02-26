@@ -157,9 +157,28 @@ def open_pr_in_browser(pr_url: str) -> None:
 
 def wait_for_ci(pr_url: str) -> None:
     """Wait for all CI checks to pass on the PR."""
+    import time
+
     # Extract PR number from URL
     pr_number = pr_url.rstrip("/").split("/")[-1]
-    # Wait for all checks (not just required)
+
+    # Wait for checks to appear (they may not be created immediately)
+    print("\nWaiting for CI checks to start...", file=sys.stderr)
+    max_wait = 60  # Wait up to 60 seconds for checks to appear
+    for i in range(max_wait):
+        result = run(["gh", "pr", "checks", pr_number], check=False, capture=True)
+        if result.returncode == 0 and result.stdout.strip():
+            # Checks exist, now watch them
+            break
+        time.sleep(1)
+    else:
+        print(
+            "Warning: No checks found after 60 seconds, continuing anyway...",
+            file=sys.stderr,
+        )
+        return
+
+    # Now watch for all checks to complete
     run(["gh", "pr", "checks", pr_number, "--watch"])
 
 
