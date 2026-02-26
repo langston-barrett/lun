@@ -45,7 +45,7 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         },
         config::Linter {
             tool: config::Tool {
-                name: None,
+                name: Some(String::from("hlint")),
                 cmd: "hlint --".to_string(),
                 files: vec!["*.hs".to_string()],
                 ignore: Vec::new(),
