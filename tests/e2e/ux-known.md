@@ -30,6 +30,7 @@ args = "none"
 configs = ["Cargo.toml"]
 
 [[linter]]
+name = "hlint"
 cmd = "hlint --"
 files = ["*.hs"]
 configs = [
