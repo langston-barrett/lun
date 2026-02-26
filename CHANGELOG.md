@@ -2,6 +2,17 @@
 
 <!-- https://keepachangelog.com/en/1.0.0/ -->
 
+## next
+
+### Added
+
+- Add `hlint` to known linters
+
+### Fixed
+
+- Don't create cache directory when `--no-cache`/`--fresh` is used
+- Fix `--color` flag and `files = ["*"]` for `cargo test`
+
 ## [0.12.0] - 2026-02-03
 
 [0.12.0]: https://github.com/langston-barrett/lun/releases/tag/v0.12.0
