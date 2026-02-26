@@ -239,7 +239,10 @@ args = "many"
         cache_dir.clone(),
     )
     .unwrap();
-    assert!(!cache_dir.exists(), "cache dir should not be created with --no-cache");
+    assert!(
+        !cache_dir.exists(),
+        "cache dir should not be created with --no-cache"
+    );
 }
 
 #[test]
@@ -257,5 +260,8 @@ args = "many"
         cache_dir.clone(),
     )
     .unwrap();
-    assert!(!cache_dir.exists(), "cache dir should not be created with --fresh");
+    assert!(
+        !cache_dir.exists(),
+        "cache dir should not be created with --fresh"
+    );
 }

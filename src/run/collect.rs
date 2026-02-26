@@ -82,9 +82,9 @@ pub(crate) fn walk(root: &Path, cache_dir: &Path) -> Result<Vec<PathBuf>> {
 
             path.extension().is_none_or(|e| e != "bck")
                 && !has_git_dir
-                && cache.as_ref().is_none_or(|cache| {
-                    fs::canonicalize(path).is_ok_and(|p| !p.starts_with(cache))
-                })
+                && cache
+                    .as_ref()
+                    .is_none_or(|cache| fs::canonicalize(path).is_ok_and(|p| !p.starts_with(cache)))
         })
         .build();
     let mut paths = Vec::new();
