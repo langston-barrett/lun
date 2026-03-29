@@ -21,7 +21,7 @@ xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 serde = { version = "1", features = ["derive"] }
 toml = "1.0"
 dhat = { version = "0.3.3", optional = true }
-terminal_size = "0.4.3"
+terminal_size = "0.4.4"
 
 [dev-dependencies]
 expect-test = "1"
