@@ -15,6 +15,7 @@ use tracing::{debug, error, trace};
 
 use crate::cache;
 use crate::cache::CacheWriter;
+use crate::file;
 use crate::progress::{Format, Progress};
 use crate::run::{batch, cmd, report};
 
@@ -313,21 +314,83 @@ fn run(
     }
 }
 
+enum Reread {
+    /// The tool modified the file; here's the fresh state.
+    Modified(file::File),
+    /// The mtime is unchanged; the tool didn't modify this file.
+    Unchanged,
+    /// We couldn't stat or read the file after the tool ran.
+    Failed,
+}
+
+/// Re-read a file from disk to get its post-modification state.
+///
+/// Does a cheap stat first and compares mtime against the pre-run state.
+/// Only reads file content if the mtime actually changed (i.e., the tool
+/// modified the file).
+fn reread_file(path: &Path, old_mtime: &file::Stamp) -> Reread {
+    match file::File::new(path.to_path_buf()) {
+        Ok(mut fresh) => {
+            if fresh.mtime_stamp == *old_mtime {
+                trace!("{}: mtime unchanged, skipping re-read", path.display());
+                return Reread::Unchanged;
+            }
+            if let Err(e) = fresh.fill_content_stamp() {
+                debug!("{}: failed to re-read after tool ran ({e})", path.display());
+                Reread::Failed
+            } else {
+                Reread::Modified(fresh)
+            }
+        }
+        Err(e) => {
+            debug!("{}: failed to re-stat after tool ran ({e})", path.display());
+            Reread::Failed
+        }
+    }
+}
+
+/// Compute cache keys for a file after a tool has run.
+///
+/// For tools that modify files (formatters, linters in fix mode), re-reads
+/// from disk so we cache the post-fix state, not the stale pre-run state.
+/// Skips the file (no keys pushed) if re-reading fails.
+pub(super) fn cache_keys(
+    out: &mut Vec<cache::KeyHash>,
+    cmd_file: &file::File,
+    tool: &crate::tool::Tool,
+    mtime_enabled: bool,
+) {
+    let fresh;
+    let f = if tool.modifies_files {
+        match reread_file(&cmd_file.path, &cmd_file.mtime_stamp) {
+            Reread::Modified(f) => {
+                fresh = f;
+                &fresh
+            }
+            Reread::Unchanged => cmd_file,
+            Reread::Failed => return,
+        }
+    } else {
+        debug_assert!(cmd_file.content_stamp.is_some()); // should happen in plan.rs
+        cmd_file
+    };
+    let content_key = cache::Key::from_content(f, tool);
+    out.push(cache::KeyHash::from(&content_key));
+    if mtime_enabled {
+        let mtime_key = cache::Key::from_mtime(f, tool);
+        out.push(cache::KeyHash::from(&mtime_key));
+    }
+}
+
 fn done(cmd: cmd::Command, mtime_enabled: bool) -> Vec<cache::KeyHash> {
-    let tool = cmd.tool.clone();
+    let tool = &cmd.tool;
     let mut hashes = Vec::with_capacity(if mtime_enabled {
         cmd.files.len() * 2
     } else {
         cmd.files.len()
     });
-    for file in &cmd.files {
-        debug_assert!(file.content_stamp.is_some()); // should happen in plan.rs
-        let content_key = cache::Key::from_content(file, &tool);
-        hashes.push(cache::KeyHash::from(&content_key));
-        if mtime_enabled {
-            let mtime_key = cache::Key::from_mtime(file, &tool);
-            hashes.push(cache::KeyHash::from(&mtime_key));
-        }
+    for cmd_file in &cmd.files {
+        cache_keys(&mut hashes, cmd_file, tool, mtime_enabled);
     }
     hashes
 }

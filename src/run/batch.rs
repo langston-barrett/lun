@@ -156,6 +156,7 @@ mod tests {
             stamp: tool::Stamp(file::Xxhash(0)),
             cd: None,
             configs: Vec::new(),
+            modifies_files: false,
         })
     }
 

@@ -9,7 +9,7 @@ use tracing::{debug, error, trace};
 use xxhash_rust::xxh3::Xxh3;
 
 use crate::{
-    cache::{self, CacheWriter},
+    cache::CacheWriter,
     run::{batch, cmd},
 };
 
@@ -72,17 +72,15 @@ pub(crate) fn exec(
         parse_ninja_output(&stdout, &stderr, &batches, &builddir)
     };
 
+    let mut hashes = Vec::new();
     for batch in batches {
         let target_name = tgt_name(&batch.cmd);
         if executed_targets.contains(&target_name) {
-            let tool = batch.cmd.tool.clone();
+            let tool = &batch.cmd.tool;
             for file in &batch.cmd.files {
-                debug_assert!(file.content_stamp.is_some()); // in plan.rs
-                let content_key = cache::Key::from_content(file, &tool);
-                cache.done(&content_key);
-                if mtime_enabled {
-                    let mtime_key = cache::Key::from_mtime(file, &tool);
-                    cache.done(&mtime_key);
+                super::exec::cache_keys(&mut hashes, file, tool, mtime_enabled);
+                for hash in hashes.drain(..) {
+                    cache.done_hash(hash);
                 }
             }
         }

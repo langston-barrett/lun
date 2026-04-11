@@ -19,6 +19,9 @@ pub(crate) struct Tool {
     pub(crate) stamp: Stamp,
     pub(crate) cd: Option<PathBuf>,
     pub(crate) configs: Vec<PathBuf>,
+    /// Whether this tool may modify files in-place (formatters, linters in fix mode).
+    /// When true, `done()` re-reads file content/mtime after running to avoid caching stale state.
+    pub(crate) modifies_files: bool,
 }
 
 impl Tool {
