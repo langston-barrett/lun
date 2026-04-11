@@ -17,10 +17,10 @@ args = "many"
 
 ### Files
 
-- `file.py`: 100b
-- `image.jpg`: 200b
-- `image.png`: 150b
-- `icon.svg`: 50b
+- `file.py`: `A`
+- `image.jpg`: `A`
+- `image.png`: `A`
+- `icon.svg`: `A`
 
 ### Output
 

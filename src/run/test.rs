@@ -139,28 +139,16 @@ fn process_flags_section(scenario: &mut TestScenario, content: &str) {
     scenario.out_config = out::Config::new(&env, cli.log);
 }
 
-fn process_files_section_line(scenario: &mut TestScenario, line: &str) {
-    if line.starts_with("- `") && line.contains(':') {
-        // Parse file entry like: - `file.py`: 100b
-        let file_part = line
-            .strip_prefix("- `")
-            .and_then(|s| s.split("`: ").next())
-            .unwrap_or("");
-        let size_part = line
-            .split(": ")
-            .nth(1)
-            .and_then(|s| s.strip_suffix('b'))
-            .and_then(|s| s.trim().parse::<usize>().ok())
-            .unwrap_or(0);
-
-        // Generate content based on size
-        let content = "x".repeat(size_part);
-        scenario.files.push(TestFile {
-            path: PathBuf::from(file_part),
-            size: size_part,
-            content,
-        });
-    }
+fn parse_file_list_line(line: &str) -> Option<TestFile> {
+    // Parse: - `PATH`: `CONTENT`
+    let rest = line.strip_prefix("- `")?;
+    let (path, rest) = rest.split_once("`: `")?;
+    let content = rest.strip_suffix('`')?;
+    Some(TestFile {
+        path: PathBuf::from(path),
+        size: content.len(),
+        content: content.to_string(),
+    })
 }
 
 fn process_section_content(
@@ -286,8 +274,10 @@ fn parse_test_file(path: &Path) -> Result<Vec<TestScenario>> {
             }
         } else if let Some(ref section) = current_section {
             if section == "files" {
-                if let Some(ref mut scenario) = current_scenario {
-                    process_files_section_line(scenario, line);
+                if let Some(ref mut scenario) = current_scenario
+                    && let Some(test_file) = parse_file_list_line(line)
+                {
+                    scenario.files.push(test_file);
                 }
             } else {
                 current_content.push_str(line);
@@ -471,8 +461,8 @@ fn parse_test_file_debug() {
                 files: [
                     TestFile {
                         path: "file.py",
-                        size: 8,
-                        content: "xxxxxxxx",
+                        size: 1,
+                        content: "A",
                     },
                 ],
                 expected_output: [
@@ -527,8 +517,8 @@ fn parse_test_file_debug() {
                 files: [
                     TestFile {
                         path: "file.py",
-                        size: 8,
-                        content: "xxxxxxxx",
+                        size: 1,
+                        content: "A",
                     },
                 ],
                 expected_output: [

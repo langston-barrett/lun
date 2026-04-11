@@ -1,7 +1,7 @@
 # `[[tool]]` overriding behavior
 
 Test that `[[tool]]` can use known tools and override specific fields.
-Each scenario uses different file sizes to avoid cache interactions.
+Each scenario uses different file patterns to avoid cache interactions.
 
 ## Scenario 1
 
@@ -17,7 +17,7 @@ configs = []
 
 ### Files
 
-- `file.sh`: 10b
+- `file.sh`: `A`
 
 ### Flags
 
@@ -46,8 +46,8 @@ configs = []
 
 ### Files
 
-- `file.bash`: 20b
-- `file.sh`: 20b
+- `file.bash`: `A`
+- `file.sh`: `A`
 
 ### Flags
 

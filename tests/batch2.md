@@ -18,12 +18,12 @@ args = "many"
 
 ### Files
 
-- `file1.py`: 100b
-- `file2.py`: 200b
-- `file3.py`: 150b
-- `file4.py`: 50b
-- `file5.py`: 300b
-- `file6.py`: 100b
+- `file1.py`: `AA`
+- `file2.py`: `AAAA`
+- `file3.py`: `AAA`
+- `file4.py`: `A`
+- `file5.py`: `AAAAAA`
+- `file6.py`: `AA`
 
 ### Output
 

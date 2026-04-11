@@ -15,7 +15,7 @@ args = "many"
 
 ### Files
 
-- `file.py`: 8b
+- `file.py`: `A`
 
 ### Output
 

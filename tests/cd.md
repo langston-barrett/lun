@@ -14,7 +14,7 @@ cd = "subdir"
 
 ### Files
 
-- `subdir/file.py`: 8b
+- `subdir/file.py`: `A`
 
 ### Output
 
@@ -36,7 +36,7 @@ cd = "subdir"
 
 ### Files
 
-- `subdir/nested/file.py`: 8b
+- `subdir/nested/file.py`: `A`
 
 ### Output
 

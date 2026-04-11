@@ -18,7 +18,7 @@ args = "many"
 
 ### Files
 
-- `file.py`: 8b
+- `file.py`: `A`
 
 ### Output
 
@@ -67,7 +67,7 @@ args = "many"
 
 ### Files
 
-- `file.rs`: 8b
+- `file.rs`: `A`
 
 ### Flags
 
