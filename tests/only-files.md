@@ -15,10 +15,10 @@ args = "many"
 
 ### Files
 
-- `file1.py`: 100b
-- `file2.py`: 200b
-- `different.py`: 150b
-- `file4.py`: 50b
+- `file1.py`: `AA`
+- `file2.py`: `AAAA`
+- `different.py`: `AAA`
+- `file4.py`: `A`
 
 ### Flags
 

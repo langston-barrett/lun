@@ -19,7 +19,7 @@ args = "none"
 
 ### Files
 
-- `file.txt`: 5b
+- `file.txt`: `A`
 
 ### Output
 

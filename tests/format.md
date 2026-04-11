@@ -16,7 +16,7 @@ args = "many"
 
 ### Files
 
-- `file.py`: 8b
+- `file.py`: `A`
 
 ### Output
 
@@ -25,6 +25,8 @@ fmt -- file.py
 ```
 
 ## Scenario 2
+
+Same file, same config. Cache hit from scenario 1.
 
 ### Config
 
@@ -39,5 +41,4 @@ args = "many"
 ### Output
 
 ```sh
-
 ```

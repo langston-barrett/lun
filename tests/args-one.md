@@ -18,9 +18,9 @@ args = "one"
 
 ### Files
 
-- `file1.txt`: 8b
-- `file2.txt`: 8b
-- `file3.txt`: 8b
+- `file1.txt`: `A`
+- `file2.txt`: `A`
+- `file3.txt`: `A`
 
 ### Output
 
