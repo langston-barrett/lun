@@ -21,7 +21,7 @@ files = ["*.toml"]
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

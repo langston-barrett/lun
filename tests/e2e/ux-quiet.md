@@ -16,7 +16,7 @@ files = ["*.toml"]
 ## Command
 
 ```sh
--q run
+lun -q run
 ```
 
 TODO(#145): This should not be the same as `ux-success.md`.

@@ -5,7 +5,7 @@ Test the output of `lun known`.
 ## Command
 
 ```sh
-known
+lun known
 ```
 
 ```
