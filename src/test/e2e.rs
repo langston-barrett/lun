@@ -5,8 +5,6 @@ use anyhow::{Context, Result};
 use clap::Parser as _;
 use expect_test::expect;
 
-use std::env;
-
 use crate::out;
 
 /// Process ANSI escape sequences in output for testing.
@@ -52,7 +50,8 @@ fn process_ansi_output(output: &str) -> String {
 
 #[derive(Debug)]
 struct Command {
-    args: Vec<String>,
+    /// Raw command text from the test file
+    raw: String,
     expected_output: String,
     /// Line number where expected output starts (for `UPDATE_EXPECT`)
     expected_output_line: usize,
@@ -74,7 +73,7 @@ fn parse_test_file(path: &Path) -> Result<TestCase> {
     let mut commands: Vec<Command> = Vec::new();
 
     // Current command being built
-    let mut current_command_args: Vec<String> = Vec::new();
+    let mut current_command_raw = String::new();
     let mut current_command_output_line = 0;
 
     let mut current_section: Option<&str> = None;
@@ -106,21 +105,18 @@ fn parse_test_file(path: &Path) -> Result<TestCase> {
                     Some("command") => {
                         #[allow(clippy::if_not_else)]
                         if !seen_command_args {
-                            // First code block is the command args
-                            current_command_args = code_block_content
-                                .split_whitespace()
-                                .map(String::from)
-                                .collect();
+                            // First code block is the command
+                            current_command_raw = code_block_content.trim().to_string();
                             seen_command_args = true;
                         } else {
                             // Second code block is expected output
                             // Save the completed command
                             commands.push(Command {
-                                args: current_command_args.clone(),
+                                raw: current_command_raw.clone(),
                                 expected_output: code_block_content.clone(),
                                 expected_output_line: current_command_output_line,
                             });
-                            current_command_args.clear();
+                            current_command_raw.clear();
                             seen_command_args = false;
                         }
                     }
@@ -146,6 +142,15 @@ fn parse_test_file(path: &Path) -> Result<TestCase> {
         } else if line.starts_with("## Setup") {
             current_section = Some("setup");
         } else if line.starts_with("## Command") {
+            // Flush a pending shell command (one code block, no expected output)
+            if seen_command_args && !current_command_raw.is_empty() {
+                commands.push(Command {
+                    raw: current_command_raw.clone(),
+                    expected_output: String::new(),
+                    expected_output_line: 0,
+                });
+                current_command_raw.clear();
+            }
             current_section = Some("command");
             seen_command_args = false;
         } else if line.starts_with("### `") && current_section == Some("files") {
@@ -155,6 +160,15 @@ fn parse_test_file(path: &Path) -> Result<TestCase> {
                 current_file_path = Some(PathBuf::from(file_path));
             }
         }
+    }
+
+    // Flush a pending shell command at end of file
+    if seen_command_args && !current_command_raw.is_empty() {
+        commands.push(Command {
+            raw: current_command_raw,
+            expected_output: String::new(),
+            expected_output_line: 0,
+        });
     }
 
     Ok(TestCase {
@@ -246,118 +260,156 @@ pub(super) fn run_test(test_path: &Path, ansi_mode: bool) -> Result<()> {
 
     // Run each command
     for command in &test_case.commands {
-        let mut cli_args = vec!["lun".to_string()];
-        cli_args.push("--config".to_string());
-        cli_args.push(temp_path.join("lun.toml").to_string_lossy().to_string());
-        cli_args.push("--cache".to_string());
-        cli_args.push(temp_path.join(".lun").to_string_lossy().to_string());
-        if ansi_mode {
-            cli_args.push("--color".to_string());
-            cli_args.push("always".to_string());
-        }
-        cli_args.extend(command.args.clone());
-        if command.args.starts_with(&["run".to_string()]) {
-            cli_args.push("--jobs".to_string());
-            cli_args.push("1".to_string());
-        }
-        let cli = crate::cli::Cli::try_parse_from(&cli_args)
-            .map_err(|e| anyhow::anyhow!("Failed to parse CLI: {e}"))?;
-
-        let config = match crate::config::Config::load(&config_path) {
-            Ok(c) => c,
-            Err(e) => {
-                // Config loading failed - treat this as the error output
-                let actual_output = format!("{e}").replace(temp_path_str.as_ref(), "<TEMP>");
-                let expected_normalized = &command.expected_output;
-                let actual_normalized = actual_output.trim();
-
-                if env::var("UPDATE_EXPECT").is_ok() {
-                    if expected_normalized != actual_normalized {
-                        update_expected_output(
-                            test_path,
-                            command.expected_output_line,
-                            &actual_output,
-                        )?;
-                        println!("Updated expected output in {}", test_path.display());
-                    }
-                    continue;
-                }
-
-                if expected_normalized != actual_normalized {
-                    anyhow::bail!(
-                        "Output mismatch in {}:\n\nExpected:\n{}\n\nActual:\n{}\n",
-                        test_path.display(),
-                        expected_normalized,
-                        actual_normalized
-                    );
-                }
-                continue;
+        if let Some(lun_args) = command.raw.strip_prefix("lun ") {
+            run_lun_command(
+                lun_args,
+                &env,
+                &paths,
+                &config_path,
+                temp_path,
+                temp_path_str.as_ref(),
+                ansi_mode,
+                command,
+                test_path,
+            )?;
+        } else {
+            // Shell command: run via sh -c
+            let output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg(&command.raw)
+                .current_dir(temp_path)
+                .output()
+                .with_context(|| format!("Failed to execute shell command: {}", command.raw))?;
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                anyhow::bail!(
+                    "Shell command failed in {}: {}\nstderr: {}",
+                    test_path.display(),
+                    command.raw,
+                    stderr,
+                );
             }
-        };
-
-        // Capture output
-        let mut output_buffer: Vec<u8> = Vec::new();
-
-        // Run with the temp directory as working directory
-        let out_config = out::Config::new(&env, cli.log);
-        let result = crate::go(
-            cli.command,
-            cli.warn,
-            &paths,
-            &env,
-            config,
-            out_config,
-            &mut output_buffer,
-        );
-
-        // Get captured output and normalize escape sequences
-        let captured = {
-            let raw = String::from_utf8_lossy(&output_buffer).to_string();
-            if ansi_mode {
-                // Process ANSI escape sequences into text markers
-                process_ansi_output(&raw)
-            } else {
-                // Replace terminal clear-line escape sequences with newlines for readability
-                raw.replace("\x1b[2K\r", "")
-            }
-        };
-
-        // Handle errors by capturing them as output
-        let actual_output = match result {
-            Ok(_) => captured,
-            Err(e) => format!("{captured}{e}").trim().to_string(),
-        };
-
-        // Normalize outputs for comparison (trim whitespace, normalize line endings, replace temp paths)
-        let expected_normalized = &command.expected_output;
-        let actual_normalized = actual_output
-            .trim()
-            .replace(temp_path_str.as_ref(), "<TEMP>");
-        let actual_normalized = actual_normalized.trim();
-
-        // Check UPDATE_EXPECT
-        if env::var("UPDATE_EXPECT").is_ok() {
-            if expected_normalized != actual_normalized {
-                let output_for_file = actual_output
-                    .trim()
-                    .replace(temp_path_str.as_ref(), "<TEMP>");
-                update_expected_output(test_path, command.expected_output_line, &output_for_file)?;
-                println!("Updated expected output in {}", test_path.display());
-            }
-            continue;
-        }
-
-        // Compare
-        if expected_normalized != actual_normalized {
-            anyhow::bail!(
-                "Output mismatch in {}:\n\nExpected:\n{}\n\nActual:\n{}\n",
-                test_path.display(),
-                expected_normalized,
-                actual_normalized
-            );
         }
     }
 
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_lun_command(
+    lun_args: &str,
+    env: &crate::env::Env,
+    paths: &crate::Paths,
+    config_path: &Path,
+    temp_path: &Path,
+    temp_path_str: &str,
+    ansi_mode: bool,
+    command: &Command,
+    test_path: &Path,
+) -> Result<()> {
+    let args: Vec<String> = lun_args.split_whitespace().map(String::from).collect();
+    let mut cli_args = vec!["lun".to_string()];
+    cli_args.push("--config".to_string());
+    cli_args.push(temp_path.join("lun.toml").to_string_lossy().to_string());
+    cli_args.push("--cache".to_string());
+    cli_args.push(temp_path.join(".lun").to_string_lossy().to_string());
+    if ansi_mode {
+        cli_args.push("--color".to_string());
+        cli_args.push("always".to_string());
+    }
+    cli_args.extend(args.clone());
+    if args.contains(&"run".to_string()) {
+        cli_args.push("--jobs".to_string());
+        cli_args.push("1".to_string());
+    }
+    let cli = crate::cli::Cli::try_parse_from(&cli_args)
+        .map_err(|e| anyhow::anyhow!("Failed to parse CLI: {e}"))?;
+
+    let config = match crate::config::Config::load(config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            // Config loading failed - treat this as the error output
+            let actual_output = format!("{e}").replace(temp_path_str, "<TEMP>");
+            let expected_normalized = &command.expected_output;
+            let actual_normalized = actual_output.trim();
+
+            if std::env::var("UPDATE_EXPECT").is_ok() {
+                if expected_normalized != actual_normalized {
+                    update_expected_output(
+                        test_path,
+                        command.expected_output_line,
+                        &actual_output,
+                    )?;
+                    println!("Updated expected output in {}", test_path.display());
+                }
+                return Ok(());
+            }
+
+            if expected_normalized != actual_normalized {
+                anyhow::bail!(
+                    "Output mismatch in {}:\n\nExpected:\n{}\n\nActual:\n{}\n",
+                    test_path.display(),
+                    expected_normalized,
+                    actual_normalized
+                );
+            }
+            return Ok(());
+        }
+    };
+
+    // Capture output
+    let mut output_buffer: Vec<u8> = Vec::new();
+
+    // Run with the temp directory as working directory
+    let out_config = out::Config::new(env, cli.log);
+    let result = crate::go(
+        cli.command,
+        cli.warn,
+        paths,
+        env,
+        config,
+        out_config,
+        &mut output_buffer,
+    );
+
+    // Get captured output and normalize escape sequences
+    let captured = {
+        let raw = String::from_utf8_lossy(&output_buffer).to_string();
+        if ansi_mode {
+            process_ansi_output(&raw)
+        } else {
+            raw.replace("\x1b[2K\r", "")
+        }
+    };
+
+    // Handle errors by capturing them as output
+    let actual_output = match result {
+        Ok(_) => captured,
+        Err(e) => format!("{captured}{e}").trim().to_string(),
+    };
+
+    // Normalize outputs for comparison
+    let expected_normalized = &command.expected_output;
+    let actual_normalized = actual_output.trim().replace(temp_path_str, "<TEMP>");
+    let actual_normalized = actual_normalized.trim();
+
+    if std::env::var("UPDATE_EXPECT").is_ok() {
+        if expected_normalized != actual_normalized {
+            let output_for_file = actual_output.trim().replace(temp_path_str, "<TEMP>");
+            update_expected_output(test_path, command.expected_output_line, &output_for_file)?;
+            println!("Updated expected output in {}", test_path.display());
+        }
+        return Ok(());
+    }
+
+    if expected_normalized != actual_normalized {
+        anyhow::bail!(
+            "Output mismatch in {}:\n\nExpected:\n{}\n\nActual:\n{}\n",
+            test_path.display(),
+            expected_normalized,
+            actual_normalized
+        );
+    }
     Ok(())
 }
 
@@ -377,9 +429,7 @@ fn parse_test_file_debug() {
             setup_commands: [],
             commands: [
                 Command {
-                    args: [
-                        "run",
-                    ],
+                    raw: "lun run",
                     expected_output: "[0/?] Collecting files\n[1/1] Planning\n[1/1] echo (1/1)\n[1/1] 1 file linted",
                     expected_output_line: 23,
                 },

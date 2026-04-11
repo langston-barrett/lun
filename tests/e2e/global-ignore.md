@@ -36,7 +36,7 @@ print("also ignored")
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

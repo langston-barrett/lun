@@ -33,7 +33,7 @@ b
 ## Command
 
 ```sh
-run --keep-going
+lun run --keep-going
 ```
 
 ```

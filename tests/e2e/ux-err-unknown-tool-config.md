@@ -14,7 +14,7 @@ name = "nonexistent-tool"
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

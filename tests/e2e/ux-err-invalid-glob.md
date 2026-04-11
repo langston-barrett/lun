@@ -16,7 +16,7 @@ files = ["[invalid"]
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

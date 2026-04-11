@@ -22,7 +22,7 @@ hello
 ## Command
 
 ```sh
---deny=unknown-tool run --only-tool=nonexistent
+lun --deny=unknown-tool run --only-tool=nonexistent
 ```
 
 ```

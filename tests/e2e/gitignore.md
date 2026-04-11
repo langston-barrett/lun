@@ -56,7 +56,7 @@ temp_*.py
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

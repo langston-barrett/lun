@@ -35,7 +35,7 @@ git add lun.toml tracked.txt
 Without `--vcs`, both tracked and untracked files should be processed.
 
 ```sh
-run --fresh
+lun run --fresh
 ```
 
 ```
@@ -52,7 +52,7 @@ run --fresh
 With `--vcs`, only the tracked file should be processed.
 
 ```sh
-run --vcs
+lun run --vcs
 ```
 
 ```

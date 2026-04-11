@@ -14,7 +14,7 @@ name = "echo"
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

@@ -22,7 +22,7 @@ hello
 ## Command
 
 ```sh
-run
+lun run
 ```
 
 ```

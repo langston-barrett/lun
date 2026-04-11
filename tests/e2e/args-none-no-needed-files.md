@@ -26,7 +26,7 @@ dummy
 Cache is empty, so the command should execute.
 
 ```sh
-run
+lun run
 ```
 
 ```
@@ -43,7 +43,7 @@ No files have changed, so there are no "needed" files. The command should not
 run.
 
 ```sh
-run
+lun run
 ```
 
 ```
