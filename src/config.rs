@@ -365,6 +365,7 @@ impl Linter {
         global_ignore: &[String],
     ) -> Result<tool::Tool> {
         let color_str = out_config.color_as_str();
+        let modifies_files = mode == RunMode::Fix && self.fix.is_some();
         let cmd = match mode {
             RunMode::Fix => {
                 if let Some(fix) = &self.fix {
@@ -389,6 +390,7 @@ impl Linter {
             stamp,
             cd: self.tool.cd,
             configs: self.tool.configs,
+            modifies_files,
         })
     }
 }
@@ -402,6 +404,7 @@ impl Formatter {
         global_ignore: &[String],
     ) -> Result<tool::Tool> {
         let color_str = out_config.color_as_str();
+        let modifies_files = mode != RunMode::Check;
         let cmd = match mode {
             RunMode::Check => {
                 if let Some(check) = &self.check {
@@ -426,6 +429,7 @@ impl Formatter {
             stamp,
             cd: self.tool.cd,
             configs: self.tool.configs,
+            modifies_files,
         })
     }
 }

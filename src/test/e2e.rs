@@ -539,6 +539,11 @@ fn vcs() {
 }
 
 #[test]
+fn format_cache() {
+    test_file("format-cache");
+}
+
+#[test]
 fn all_e2e_files_have_tests() {
     // Read the e2e.rs source to find all test_file("...") calls
     let source = fs::read_to_string("src/test/e2e.rs").expect("Failed to read e2e.rs");
