@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     env, fs,
     io::Write,
     path::{Path, PathBuf},
@@ -16,9 +15,10 @@ use crate::{
     run::filter,
 };
 
-fn get_staged() -> Result<Vec<String>> {
+fn get_staged(root: &Path) -> Result<Vec<PathBuf>> {
     let output = process::Command::new("git")
         .args(["diff", "--cached", "--name-only", "--diff-filter=ACMR"])
+        .current_dir(root)
         .output()
         .with_context(|| "Failed to execute git diff --cached")?;
     if !output.status.success() {
@@ -28,12 +28,17 @@ fn get_staged() -> Result<Vec<String>> {
         ));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let strip = root == env::current_dir()?;
     let files: Vec<_> = stdout
         .lines()
         .filter(|line| !line.is_empty())
         .map(|p| {
             debug!("Found staged file {p}");
-            p.to_string()
+            if strip {
+                PathBuf::from(p)
+            } else {
+                root.join(p)
+            }
         })
         .collect();
     Ok(files)
@@ -122,18 +127,14 @@ pub(crate) fn go(
     progress.write("Collecting files");
     progress.done();
 
-    let mut only = only.to_vec();
-    if staged {
-        let s = HashSet::<String>::from_iter(get_staged()?);
-        only.retain(|p| s.contains(p));
-    }
-
-    let mut paths = if vcs {
+    let mut paths = if staged {
+        get_staged(root)?
+    } else if vcs {
         get_vcs_files(root)?
     } else {
         walk(root, cache_dir)?
     };
-    filter::filter(&only, skip, &mut paths)?;
+    filter::filter(only, skip, &mut paths)?;
     #[cfg(test)]
     paths.sort_unstable();
 
