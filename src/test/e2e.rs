@@ -534,6 +534,11 @@ fn ux_quiet() {
 }
 
 #[test]
+fn staged() {
+    test_file("staged");
+}
+
+#[test]
 fn vcs() {
     test_file("vcs");
 }
