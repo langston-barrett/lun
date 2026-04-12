@@ -63,19 +63,19 @@ fn need_file<C: cache::Cache + ?Sized>(
             cache.done(&mtime_key);
         }
         false
-    } else if let Ok(true) = git::file_changed_from_refs(&file.path, refs) {
+    } else if let Ok(false) = git::file_changed_from_refs(&file.path, refs) {
+        cache.done(&content_key);
+        if mtime_enabled {
+            cache.done(&mtime_key);
+        }
+        false
+    } else {
         debug!(
             "{}: needed for {}",
             file.path.display(),
             tool.display_name(),
         );
         true
-    } else {
-        cache.done(&content_key);
-        if mtime_enabled {
-            cache.done(&mtime_key);
-        }
-        false
     }
 }
 
