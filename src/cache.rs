@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map::Entry},
     fs,
     hash::Hash as _,
     mem::size_of,
@@ -281,8 +281,11 @@ impl Cache for HashCache {
     #[inline]
     fn needed(&mut self, key: &Key) -> bool {
         let hash = KeyHash::from(key);
-        self.hashes.entry(hash).and_modify(|e| *e = 0);
-        !self.hashes.contains_key(&hash)
+        let Entry::Occupied(mut e) = self.hashes.entry(hash) else {
+            return true; // cache miss
+        };
+        *e.get_mut() = 0; // mark as recently used
+        false // cache hit
     }
 }
 
