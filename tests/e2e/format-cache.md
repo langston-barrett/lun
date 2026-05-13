@@ -10,7 +10,7 @@ violation is re-introduced, the formatter must run again.
 
 ```toml
 [[formatter]]
-cmd = "sed -i s/bad/good/"
+cmd = "perl -pi -e s/bad/good/"
 files = ["*.txt"]
 ```
 
@@ -32,7 +32,7 @@ lun run
 [0/?] Collecting files
 [1/2] Planning
 [2/2] Planning
-[1/1] sed -i s/bad/good/ (1/1)
+[1/1] perl -pi -e s/bad/good/ (1/1)
 [1/1] 1 file linted
 ```
 
@@ -71,6 +71,6 @@ lun run
 [0/?] Collecting files
 [1/2] Planning
 [2/2] Planning
-[1/1] sed -i s/bad/good/ (1/1)
+[1/1] perl -pi -e s/bad/good/ (1/1)
 [1/1] 1 file linted
 ```
