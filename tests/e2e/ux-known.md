@@ -30,6 +30,23 @@ args = "none"
 configs = ["Cargo.toml"]
 
 [[linter]]
+name = "clang-tidy"
+cmd = "clang-tidy --"
+files = [
+    "*.c",
+    "*.cc",
+    "*.cpp",
+    "*.cxx",
+    "*.h",
+    "*.hh",
+    "*.hpp",
+    "*.hxx",
+]
+args = "one"
+configs = [".clang-tidy"]
+fix = "clang-tidy --fix --fix-errors --"
+
+[[linter]]
 name = "hlint"
 cmd = "hlint --"
 files = ["*.hs"]
@@ -139,6 +156,25 @@ configs = [
     ".rustfmt.toml",
 ]
 check = "cargo fmt -- --check --color={{color}} --"
+
+[[formatter]]
+name = "clang-format"
+cmd = "clang-format -i --"
+files = [
+    "*.c",
+    "*.cc",
+    "*.cpp",
+    "*.cxx",
+    "*.h",
+    "*.hh",
+    "*.hpp",
+    "*.hxx",
+]
+configs = [
+    ".clang-format",
+    "_clang-format",
+]
+check = "clang-format --dry-run --Werror --"
 
 [[formatter]]
 name = "ruff format"

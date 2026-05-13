@@ -110,6 +110,7 @@ The following tools are recognized by name:
 - `bash -n`
 - `cargo clippy`
 - `cargo test`
+- `clang-tidy`
 - `hlint`
 - `jq null`
 - `make -n`
@@ -126,5 +127,6 @@ The following tools are recognized by name:
 **Formatters:**
 
 - `cargo fmt`
+- `clang-format`
 - `ruff format`
 - `taplo`

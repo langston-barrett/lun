@@ -45,6 +45,28 @@ pub(crate) fn known_linters() -> Vec<config::Linter> {
         },
         config::Linter {
             tool: config::Tool {
+                name: Some("clang-tidy".to_string()),
+                cmd: "clang-tidy --".to_string(),
+                files: vec![
+                    "*.c".to_string(),
+                    "*.cc".to_string(),
+                    "*.cpp".to_string(),
+                    "*.cxx".to_string(),
+                    "*.h".to_string(),
+                    "*.hh".to_string(),
+                    "*.hpp".to_string(),
+                    "*.hxx".to_string(),
+                ],
+                ignore: Vec::new(),
+                args: Args::One,
+                include_unchanged: false,
+                configs: vec![PathBuf::from(".clang-tidy")],
+                cd: None,
+            },
+            fix: Some("clang-tidy --fix --fix-errors --".to_string()),
+        },
+        config::Linter {
+            tool: config::Tool {
                 name: Some(String::from("hlint")),
                 cmd: "hlint --".to_string(),
                 files: vec!["*.hs".to_string()],
@@ -233,6 +255,31 @@ pub(crate) fn known_formatters() -> Vec<config::Formatter> {
                 cd: None,
             },
             check: Some("cargo fmt -- --check --color={{color}} --".to_string()),
+        },
+        config::Formatter {
+            tool: config::Tool {
+                name: Some("clang-format".to_string()),
+                cmd: "clang-format -i --".to_string(),
+                files: vec![
+                    "*.c".to_string(),
+                    "*.cc".to_string(),
+                    "*.cpp".to_string(),
+                    "*.cxx".to_string(),
+                    "*.h".to_string(),
+                    "*.hh".to_string(),
+                    "*.hpp".to_string(),
+                    "*.hxx".to_string(),
+                ],
+                ignore: Vec::new(),
+                args: Args::Many,
+                include_unchanged: false,
+                configs: vec![
+                    PathBuf::from(".clang-format"),
+                    PathBuf::from("_clang-format"),
+                ],
+                cd: None,
+            },
+            check: Some("clang-format --dry-run --Werror --".to_string()),
         },
         config::Formatter {
             tool: config::Tool {
