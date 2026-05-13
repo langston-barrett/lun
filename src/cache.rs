@@ -326,11 +326,7 @@ pub(crate) fn stats(cache_file: &Path) -> Result<(), anyhow::Error> {
     let total_size_bytes = HEADER_SIZE + records * RECORD_SIZE;
     let max_records = cache.max_entries;
     let max_size_bytes = HEADER_SIZE + max_records * RECORD_SIZE;
-    let percentage_used = if max_records > 0 {
-        (records * 100) / max_records
-    } else {
-        0
-    };
+    let percentage_used = (records * 100).checked_div(max_records).unwrap_or(0);
 
     // Calculate records in most recent run (counter == 0)
     let records_most_recent_run = cache
@@ -347,11 +343,7 @@ pub(crate) fn stats(cache_file: &Path) -> Result<(), anyhow::Error> {
     } else {
         0
     };
-    let avg_records_per_run = if runs_represented > 0 {
-        records / runs_represented
-    } else {
-        0
-    };
+    let avg_records_per_run = records.checked_div(runs_represented).unwrap_or(0);
 
     info!("Number of runs: {runs_represented}");
     info!("Records: {records}");

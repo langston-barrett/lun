@@ -83,7 +83,7 @@ pub(crate) fn exec(
             let mut all_hashes = Vec::with_capacity(results.len());
             for (b, hashes) in results {
                 ok &= b;
-                all_hashes.extend(hashes.into_iter());
+                all_hashes.extend(hashes);
             }
             Ok((ok, all_hashes))
         });

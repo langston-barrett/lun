@@ -1,4 +1,4 @@
-use std::{num::NonZero, process};
+use std::{cmp::Reverse, num::NonZero, process};
 
 use tracing::debug;
 
@@ -101,7 +101,7 @@ fn batch(mut cmd: cmd::Command, cores: NonZero<usize>) -> Vec<Batch> {
         return one_per_file(cmd);
     }
 
-    cmd.files.sort_by(|a, b| b.size.cmp(&a.size));
+    cmd.files.sort_by_key(|b| Reverse(b.size));
     let mut jobs: Vec<(Vec<file::File>, usize)> = (0..cores).map(|_| (Vec::new(), 0)).collect();
     // Distribute files to jobs using a greedy algorithm
     for file in cmd.files {
