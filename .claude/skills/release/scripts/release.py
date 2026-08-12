@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Automate semantic version releases for Rust projects."""
 
-from argparse import ArgumentParser
-from dataclasses import dataclass
-from datetime import date
-from enum import Enum
-from pathlib import Path
 import re
 import subprocess
 import sys
 import webbrowser
+from argparse import ArgumentParser
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from enum import Enum
+from pathlib import Path
 
 
 class BumpType(Enum):
@@ -89,7 +89,7 @@ def update_changelog(
 ) -> None:
     """Update CHANGELOG.md: replace '## next' with version header and add link."""
     content = changelog_path.read_text()
-    today = date.today().isoformat()
+    today = datetime.now(tz=timezone.utc).date().isoformat()
     version_header = f"## [{new_version}] - {today}"
     link = f"[{new_version}]: https://github.com/langston-barrett/{project_name}/releases/tag/v{new_version}"
 
