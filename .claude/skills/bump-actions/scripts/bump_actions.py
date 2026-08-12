@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Bump lun and install-lun action versions."""
 
-from argparse import ArgumentParser
-from pathlib import Path
 import re
 import subprocess
 import sys
+from argparse import ArgumentParser
+from pathlib import Path
 
 
 def run(
